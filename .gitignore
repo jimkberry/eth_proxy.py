@@ -1,0 +1,12 @@
+node_modules
+dist
+app/bower_components
+app/bundles
+*.log
+.project
+.pydevproject
+ppa-testnet-geth
+eth-testnet
+cons-testnet-geth
+poker_virtualenv
+poker_keystore
