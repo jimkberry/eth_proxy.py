@@ -31,6 +31,7 @@ class EthProxyHttp(EthProxyBase):
             'id': _id
         })
                
+               
         response = requests.post("http://{0}:{1}".format(self.rpc_host, self.rpc_port), data=data).json()
 
         if 'result' in response:

@@ -5,10 +5,7 @@ import time
 import os
 import codecs
 
-from eth_proxy_http import EthProxyHttp
-from eth_keystore import EthereumKeystore, AsyncKeystore
-from solc_caller import SolcCaller
-from tx_delegate import TransactionDelegate
+from eth_proxy import EthProxyHttp, TransactionDelegate, EthNodeSigner, SolcCaller
 
 #
 # End-to-end test using mid-level syncronous EtherProxy API
@@ -16,17 +13,46 @@ from tx_delegate import TransactionDelegate
 # 
 
 
+
 #defaults
-keystore_path = '/home/jim/etherpoker/etherpoker/poker_keystore'
-
-account = '0x43f41cdca2f6785642928bcd2265fe9aff02911a'
-pw = 'foo'
-
-account2 = '0x510c1ffb6d4236808e7d54bb62741681ace6ea88'
 
 rpc_host='localhost'
 #rpc_host='162.243.42.95'
 rpc_port=8545
+
+
+# I want logging to look like this
+log.basicConfig(level=log.INFO,
+                    format=('%(levelname)s:'
+                                '%(name)s():'
+                                '%(funcName)s():'
+                                ' %(message)s'))
+
+# don't want info logs from "requests" (there's a lot of 'em)
+log.getLogger("requests").setLevel(log.WARNING)  
+log.getLogger("urllib3").setLevel(log.WARNING)
+
+# might want this
+pp = pprint.PrettyPrinter(depth=6)
+
+
+# Create some global test-wide objects
+
+# the EthProxy
+eth = EthProxyHttp(rpc_host, rpc_port)
+block = eth.eth_blockNumber()  # Trivial test (are we connected?)
+print("\neth_blockNumber(): {0}".format(block))
+
+#
+# A Keystore that is really the ethereum node
+#
+keystore = EthNodeSigner(eth)
+
+accounts = eth.eth_accounts()
+print("\neth_accounts(): {0}".format(accounts))
+
+account = accounts[0]
+account2 = accounts[1]
 
 #
 # Create a simple contract with ctor params
@@ -74,7 +100,7 @@ class async_tester(TransactionDelegate):
     
     def __init__(self):
         self.state = self.STATE_INIT
-        self.eth = None;
+        self.eth = None
         self.contract_addr = None
         self.done = False
            
@@ -115,12 +141,7 @@ class async_tester(TransactionDelegate):
     
     def setup_ethProxy(self):
         self.eth = EthProxyHttp(rpc_host, rpc_port)
-        keystore = EthereumKeystore(keystore_path)
-        errmsg = keystore.unlock_account(account, pw)
-        if errmsg:
-            print("Error unlocking acct: {0} \nMsg: {1}.".format(account, errmsg))
-            exit()
-        print('Account unlocked.')
+        keystore = EthNodeSigner(self.eth)
         # Set up proxy for this account
         self.eth.set_transaction_signer(keystore)
         self.eth.attach_account(account)    
@@ -201,11 +222,7 @@ class async_tester(TransactionDelegate):
 if __name__ =="__main__":
     '''
     Test it all
-    '''
-    # but I don't want info logs from "requests" (there's a lot of 'em)
-    log.getLogger("requests").setLevel(log.WARNING)
-    log.getLogger("urllib3").setLevel(log.WARNING)     
-    
+    '''  
     log.info("\nRunning async test...\n")
     tester = async_tester()
     tester.run()

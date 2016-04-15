@@ -19,19 +19,6 @@ class EthereumTxSigner(object):
         Returns: Nothing 
         '''
         raise NotImplementedError()
-# 
-# TODO: delete
-#     def sign_transaction_sync(self, acct_addr, unsigned_tx):
-#         '''
-#         Asynchronous - returns nothing and results come via the delegate
-#         
-#         Params:
-#             acct_addr - etherem account hex address
-#             unsigned_tx -  RLP-encoded raw unsigned tx
-#                 
-#         Returns: (signed_tx, result_code, msg) 
-#         '''
-#         raise NotImplementedError()
 
 
 class EthTxSigDelegate(object):

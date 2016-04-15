@@ -3,6 +3,20 @@
 import time
 import codecs
 
+def sig_to_vrs(sig):
+    '''
+    Sig is a 134 character hex-string 
+    ECDSA signature startng with '0x'
+    We want integers
+    '''
+    r = hex_str_to_int(sig[0:66])
+    s = hex_str_to_int('0x'+sig[66:130])
+    v = hex_str_to_int('0x'+sig[130:132])
+    if v < 27:  # this is either 27 or 28
+        v += 27  # or 0 => 27 or 1 => 28
+    return v,r,s    
+    
+    
 def hex_str_to_int(hexStr):
     '''
     TODO: Is there a more "official" way to do this?

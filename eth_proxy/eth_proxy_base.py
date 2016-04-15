@@ -7,12 +7,10 @@ from types import ListType
 
 from tx_delegate import TransactionDelegate
 from tx_signer import EthTxSigDelegate
-from utils import hex_str_to_int, hex_to_str
+from utils import hex_str_to_int
 import pyeth_client.eth_abi as abi
 import pyeth_client.eth_utils as utils
-import pyeth_client.eth_keys as keys
 from pyeth_client.eth_txdata import TxData
-from _socket import timeout
 
 class EthProxyBase(EthTxSigDelegate):
     '''
@@ -121,7 +119,7 @@ class EthProxyBase(EthTxSigDelegate):
                 delPc = pc
                 break
         if delPc:
-            self._pending_tx.remove(pc)
+            self._pending_tx.remove(delPc)
     
     def _poll_for_tx(self, remove_if_found):
         '''
@@ -286,6 +284,9 @@ class EthProxyBase(EthTxSigDelegate):
     def attach_account(self, acct_addr):
         self.acct_addr = acct_addr
         self.acct_nonce = None
+        
+    def account(self):
+        return self.acct_addr
         
     def detach_account(self):
         self.acct_addr = None
@@ -464,11 +465,12 @@ class EthProxyBase(EthTxSigDelegate):
                                              timeout_secs=timeout_secs)
         return self._do_submit_transaction_sync()
 
-
+#
 #
 # EthProxy lowest level
 # TODO: still need to implement sendTransaction(), even though we don;t really use it
 # 
+#
 
     def prepare_transaction(self,to_address=None, from_address=None,
                                    data=None, nonce=None, gas=None, gas_price=None, value=0):
@@ -688,6 +690,13 @@ class EthProxyBase(EthTxSigDelegate):
         Returns a list of addresses owned by client.
         """
         return self._call('eth_accounts')
+
+    def eth_sign(self, addr, data):
+        """
+        Given an account managed by the node and some data, 
+        sign the data and return the result
+        """
+        return self._call('eth_sign', [addr, data])
 
     def eth_blockNumber(self, return_raw=False):
         """

@@ -5,28 +5,32 @@ import time
 import os
 import codecs
 
-from eth_contract import EthContract
-from eth_proxy_http import EthProxyHttp
-from eth_keystore import EthereumKeystore, AsyncKeystore
-from solc_caller import SolcCaller
-from tx_delegate import TransactionDelegate
+from eth_proxy import EthProxyHttp, TransactionDelegate, EthNodeSigner
+from eth_proxy import SolcCaller, EthContract
+
 
 #
 # End-to-end test using high-level EthContract abstraction
 # 
 
-
 #defaults
-keystore_path = '/home/jim/etherpoker/etherpoker/poker_keystore'
-
-account = '0x43f41cdca2f6785642928bcd2265fe9aff02911a'
-pw = 'foo'
-
-account2 = '0x510c1ffb6d4236808e7d54bb62741681ace6ea88'
 
 rpc_host='localhost'
 #rpc_host='162.243.42.95'
 rpc_port=8545
+
+
+# I want logging to look like this
+log.basicConfig(level=log.INFO,
+                    format=('%(levelname)s:'
+                                '%(name)s():'
+                                '%(funcName)s():'
+                                ' %(message)s'))
+
+# don't want info logs from "requests" (there's a lot of 'em)
+log.getLogger("requests").setLevel(log.WARNING)  
+log.getLogger("urllib3").setLevel(log.WARNING)
+
 
 #
 # Create a simple contract with ctor params
@@ -74,6 +78,7 @@ class async_tester(object):
     def __init__(self):
         self.state = self.STATE_INIT
         self.eth = None;
+        self.keystore = None
         self.contract_addr = None
         self.done = False
            
@@ -114,19 +119,15 @@ class async_tester(object):
     
     def setup_ethProxy(self):
         self.eth = EthProxyHttp(rpc_host, rpc_port)
-        keystore = EthereumKeystore(keystore_path)
-        errmsg = keystore.unlock_account(account, pw)
-        if errmsg:
-            print("Error unlocking acct: {0} \nMsg: {1}.".format(account, errmsg))
-            exit()
-        print('Account unlocked.')
+        self.keystore = EthNodeSigner(self.eth)
+        account = self.keystore.list_accounts()[0]
         # Set up proxy for this account
-        self.eth.set_transaction_signer(keystore)
+        self.eth.set_transaction_signer(self.keystore)
         self.eth.attach_account(account)    
         
     def run(self):
         self.setup_ethProxy()
-        ether = self.eth.eth_getBalance(account)
+        ether = self.eth.eth_getBalance(self.eth.account())
         log.info("Ether balance: {0}".format(ether))
         if not ether:
             return
@@ -187,7 +188,7 @@ class async_tester(object):
                                               function_signature='aPublicInt()', 
                                               function_parameters=None,
                                               result_types=['int32'], 
-                                              from_address=account)
+                                              from_address=self.eth.account())
         print("Result {0}".format(result))    
 
         self.state = self.STATE_DONE        
@@ -205,9 +206,9 @@ if __name__ =="__main__":
     log.getLogger("requests").setLevel(log.WARNING)
     log.getLogger("urllib3").setLevel(log.WARNING)     
     
-    log.info("\nRunning async test...\n")
+    log.info("\nRunning EthContract test...\n")
     tester = async_tester()
     tester.run()
-    log.info("Done async test...\n")
+    log.info("Done EthContract test...\n")
     
 
