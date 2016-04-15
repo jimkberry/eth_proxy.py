@@ -10,7 +10,7 @@ Desired features:
 - Work as-is under Linux and Windows
 - Provide a low-level API that implements all of the JSON-RPC commands in a "call 'em drectly" sort of way.
 - Be useful for ad-hoc prototyping: developers should be able to write simple linear scripts that can provide end-to-end function: create a contract, wait for it to be mined, send it some data, etc - all in a single serial script.
-- Provide a delegate-based asynchronous API for applications. 
+- Provide a high-level delegate-based asynchronous API for applications. 
 - Include an abstraction of an Ethrerum contract which can manage source code, ABI definitions and all of that, and leave a developer with the ability to interact wit a contract in a natural-seeming way.
 
 ## Layers ##
