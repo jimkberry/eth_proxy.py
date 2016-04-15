@@ -6,8 +6,9 @@
 # impossible to install them at all under Windows.   
 #
 
-#
-# From pyethereum.transactions. If you want a version of txData that
+# TODO: Actually, I'm in the process of getting rid of this whole class/source file
+
+
 #
 import codecs
 import rlp

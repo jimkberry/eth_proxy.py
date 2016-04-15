@@ -12,6 +12,11 @@ from eth_proxy import SolcCaller, EthContract
 #
 # End-to-end test using high-level EthContract abstraction
 # 
+# *****************************************
+# TODO: Umm. Except it's not. This is the same as the mid-level async test.
+# I guess I copied it and never got around to writing an EthContract test 
+# *****************************************
+#
 
 #defaults
 
