@@ -1,7 +1,6 @@
+# eth_proxy #
 
-## eth_proxy ##
-
-### Goals ###
+## Goals ##
 
 The main goal is to provide a library that with as few dependencies as possible allows you to communicate with an Ethereum node using the JSON-RPC API.
 
@@ -14,19 +13,17 @@ Desired features:
 - Provide a delegate-based asynchronous API for applications. 
 - Include an abstraction of an Ethrerum contract which can manage source code, ABI definitions and all of that, and leave a developer with the ability to interact wit a contract in a natural-seeming way.
 
-### Layers ###
+## Layers ##
 
-#### Low Level ####
+*Low Level*
 
-#### Mid-leven Synchronous ####
+*Mid-level Synchronous*
 
-#### High-level Asynchronous ####
+*High-level Asynchronous*
 
-#### Extras ####
+*Extras*
 
-
-
-### Installing ###
+## Installing ##
 
 Nothing really to install, except for dependencies. To install them:
 
