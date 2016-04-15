@@ -22,13 +22,13 @@ Makes it seem that you are dealing directly with the Node itself. `Call eth_cloc
 
 Implements all Ethereum JSON-RPC commands. Many of these commands take an optional named "return_raw" boolean (defaults to False) that if True tells EthProxy to return the actual hex string returned by the JSON command, rather than translating it into an appropriate native type.
 
-Implements transactions unsing a 3-step *Prepare/Sign/Submit* abstraction. First you **prepare** a transaction by calling `prepareSimpleTransaction()`, `prepareContractCreationTx()`, or `prepareContractFunctionTx()` depending on what you are trying to do. 
+Implements transactions using a 3-step *Prepare/Sign/Submit* abstraction. First you **prepare** a transaction by calling `prepareSimpleTransaction()`, `prepareContractCreationTx()`, or `prepareContractFunctionTx()` depending on what you are trying to do. 
 
-These 3 methods "prepare" an unsigned  transaction. In other words, they take the parameters that go into the transaction (to, from, contract addr, function signature and params…), RLP encode them, and then return a hex string which represents the transaction and could be sent to `eth_sendRawTransaction()`. 
+These 3 methods take the parameters that go into the transaction (to, from, contract addr, function signature and params…), RLP encode them, and then return a hex string which represents the signed transaction and that could be sent to `eth_sendRawTransaction()`. 
 
-But it can't be sent to `eth_sendRawTransaction()` because it's not signed. The `EthProxy` class itself does not sign transactions because this will generally be delegated to some external actor. On the other hand, the library provides a `TranasctionSigner` interface which can be used to connect to a signer. It also provides (mostly as an example) a `LocalKeystore` class which implements TransactionSigner and can manage accounts locally, as well as a `NodeSigner` class which talsk to an ethereum node and signs transactions for accounts that the node manages.
+But it can't be sent to `eth_sendRawTransaction()` because it's not signed. The `EthProxy` class itself does not sign transactions because this will generally be delegated to some external actor. On the other hand, the library provides a `TranasctionSigner` interface which can be used to connect to a signer. It also provides (mostly as an example) a `LocalKeystore` class which implements TransactionSigner and manages accounts locally, as well as a `NodeSigner` class which talks to an ethereum node and had tehe node sign transactions for accounts that are managed by it (and unlocked).
 
-After the transaction is signed (the result is another hex string representing an RLP-encoded transaction) it can be sent to `eth_sendRawTansaction()`
+After the transaction is signed it can be sent to `eth_sendRawTansaction()`
 
 In addition, there is a `getTransactionLogs()` method which fetches log entries from the receipt for a particular tx hash. I do that a lot and wanted a shorthand way to do it.
 
