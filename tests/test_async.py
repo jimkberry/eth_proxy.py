@@ -111,8 +111,8 @@ class async_tester(TransactionDelegate):
     def tx_submitted(self, delegate_data, tx_hash, err_code, err_msg):
         print("Tx_submitted callback - err: {0} dData: {1}".format(err_code, delegate_data))
         
-    def tx_complete(self, delegate_data, tx_hash, contract_addr, gas_price,
-                    gas_used, err, err_msg):    
+    def tx_complete(self, delegate_data, tx_hash, contract_addr, has_code,
+                    gas_price, gas_used, err, err_msg):    
         '''
         
         '''
@@ -121,8 +121,8 @@ class async_tester(TransactionDelegate):
         
             if delegate_data == 'contract_creation':
                 self.contract_addr = contract_addr
-                log.info("contract_addr: {0}".format(contract_addr))
-                if contract_addr:
+                log.info("contract_addr: {0}, has_code: {1}".format(contract_addr, has_code))
+                if has_code:
                     self.state = self.STATE_CONTRACT_INSTALLED 
                 else:
                     self.state = self.STATE_DONE
@@ -156,7 +156,7 @@ class async_tester(TransactionDelegate):
         while self.state != self.STATE_DONE:
             log.info("Loop...")
             self.loop()
-            time.sleep(1)        
+            time.sleep(2)        
         
     def loop(self):
         '''
