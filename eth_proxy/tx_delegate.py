@@ -34,14 +34,12 @@ class TransactionDelegate(object):
         '''
         raise RuntimeError('Not implemented')
    
-    def tx_complete(self, delegate_data, tx_hash, contract_addr, gas_price,
-                    gas_used, err, err_msg):
+    def tx_complete(self, delegate_data, tx_hash, contract_addr, has_code,
+                    gas_price, gas_used, err, err_msg):
         '''
-        msg: {'type': MSG_TX, 'hash': hash, 'gas_used', gas_price', 'err': None or msg}         
-        
         Called when transaction is found in the current block.
         delegate_data is what you passed into create_contract_async()
         '''
-        raise RuntimeError('Not implemented')  
+        raise RuntimeError('Not implemented')
 
 

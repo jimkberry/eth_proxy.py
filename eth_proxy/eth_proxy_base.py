@@ -127,7 +127,7 @@ class EthProxyBase(EthTxSigDelegate):
         
         Sends info to delegate(s)
 
-        Returns {'tx_hash' 'contract_addr', 'gas_used', 'gas_price', 'err': None or msg} 
+        Returns {'tx_hash' 'contract_addr', 'has_code', 'gas_used', 'gas_price', 'err': None or msg} 
           or None
         '''
         now = time.time()     
@@ -139,6 +139,7 @@ class EthProxyBase(EthTxSigDelegate):
             gas_used = None
             err = None
             err_msg = None
+            has_code = False
             
             # self.log.info('Looking for tx: {0}'.format(txHash)) # &&&                
             tx = self.eth_getTransactionByHash(str(tx_hash))
@@ -149,6 +150,8 @@ class EthProxyBase(EthTxSigDelegate):
                     #self.log.info('Tx rcpt: {0}'.format(rcpt)) # &&&                      
                     gas_used = int(rcpt.get('gasUsed'),16)         
                     contract_addr = rcpt.get('contractAddress')
+                    if contract_addr:
+                        has_code = self.eth_getCode(contract_addr) is not None
                 else:
                     self.log.warning("No TX receipt for {0}".format(tx_hash))
                         
@@ -166,12 +169,13 @@ class EthProxyBase(EthTxSigDelegate):
                         delInfo = [delInfo]
                     # notify all delegates
                     for (delg, dData) in delInfo:
-                        delg.tx_complete(dData, tx_hash, contract_addr, 
+                        delg.tx_complete(dData, tx_hash, contract_addr, has_code,
                                          gas_price, gas_used, err, err_msg)                       
                 if remove_if_found:              
                     self._pending_tx.remove(pc)
                               
-                return {'tx_hash': tx_hash, 'contract_addr': contract_addr,
+                return {'tx_hash': tx_hash,
+                        'contract_addr': contract_addr, 'has_code': has_code,
                         'gas_price': gas_price, 'gas_used': gas_used, 
                         'err': err, 'err_msg': err_msg}
             
@@ -570,7 +574,7 @@ class EthProxyBase(EthTxSigDelegate):
 
         if from_address:
             params[0]['from'] = from_address
-        response = self._call('eth_call', params)   
+        response = self._call('eth_call', params)
         return abi.decode_abi(result_types, response[2:].decode('hex'))
  
 
@@ -759,11 +763,23 @@ class EthProxyBase(EthTxSigDelegate):
         """
         return self._call('eth_getUncleCountByblockNumber', [hex(block_number)])
 
-    def eth_getCode(self, address, default_block="latest"):
+    def eth_getCode(self, address, default_block="latest", return_raw=False):
         """
         Returns code at a given address.
         Result is a hex string ("0x...")
+        NOTE: currently if this is called for an address with no code
+        the string "0x" is returned. Hopefully this method is handling it in
+        a future proof way (in case they fix it) 
+        
+        Return the code as a hex string or None
         """
+        result = self._call('eth_getCode', [address, default_block])
+        if not return_raw:
+            if result == '0x' or result == '' or result is None:
+                result = None
+        return result        
+        
+        
         return self._call('eth_getCode', [address, default_block])
 
     def eth_getBlockByHash(self, block_hash, transaction_objects=True):
