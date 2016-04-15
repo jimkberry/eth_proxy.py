@@ -6,12 +6,21 @@ import json
 import codecs
 import datetime as dt
 
-import rlp
 import utils
-from pyeth_client.eth_utils import int_to_bytes
+import rlp
+from pyeth_client.eth_utils import int_to_bytes, to_string, sha3
 from pyeth_client.eth_txdata import TxData, UnsignedTxData
 import pyeth_client.eth_keys as keys
 from tx_signer import EthereumTxSigner, EthTxSigDelegate
+
+# use bitcoin lib as a backup       
+try:
+    from c_secp256k1 import ecdsa_sign_raw
+except ImportError:
+#    import warnings
+#    warnings.warn('missing c_secp256k1 falling back to pybitcointools')
+    from bitcoin import ecdsa_raw_sign as ecdsa_sign_raw
+
        
 #
 # Implements a synchronous local keystore and then, just to use as an example,
@@ -19,7 +28,7 @@ from tx_signer import EthereumTxSigner, EthTxSigDelegate
 #       
        
 
-class EthereumKeystore(EthereumTxSigner):
+class EthLocalKeystore(EthereumTxSigner):
     '''
     Stores encrypted account info as json files inside
     a directory. 1 file per account.
@@ -160,8 +169,10 @@ class EthereumKeystore(EthereumTxSigner):
                   
         signed_tx = None
         if priv_key:
-            utx = TxData.createFromTxData(unsigned_tx_str)
-            signed_tx = utx.getSignedTxData(int_to_bytes(priv_key))
+            tx = TxData.createFromTxData(unsigned_tx_str)                
+            rawhash = sha3(rlp.encode(tx, UnsignedTxData))
+            v, r, s = ecdsa_sign_raw(rawhash, priv_key)                  
+            signed_tx = tx.getSignedTxData(v,r,s)
         
         return (signed_tx, errcode, errmsg)
  
@@ -176,84 +187,4 @@ class EthereumKeystore(EthereumTxSigner):
         else:
             return (signed_tx, errcode, errmsg)  
  
-# TODO: delete
-#
-#     def sign_transaction_sync(self, acct_addr, unsigned_tx):
-#         return self._do_sign_transaction(acct_addr, unsigned_tx)        
-#  
- 
-class AsyncKeystore(EthereumKeystore):
-    '''
-    This is a completely contriived async-ification of the EthereumKeystore
-    It's reall for testing and its asyncness comes from being polled by
-    some ecternal controller
-    
-     
-    '''
-    def __init__(self, directory_path):
-        super(AsyncKeystore, self).__init__(directory_path)
-        self._jobs = []
-    
-    def loop(self):
-        '''
-        Pop one off - sign it
-        '''
-        while len(self._jobs):
-            job = self._jobs.pop()
-            self._sign_transaction(job['acct'],job['tx'],job['delegate'],job['context'])
-        
 
-    def sign_transaction(self, acct_addr, unsigned_tx_str, delegate=None, context_data=None):
-        '''
-        Make sure account is in the keystore and unlocked, then sign the tx
-        unsigned_tx_str is hex-encoded. probably starts with '0x'
-        '''    
-        if not delegate:
-            raise RuntimeError("Async keystore requires delegate")
-        
-        job = { 'acct': acct_addr,
-                'tx': unsigned_tx_str,
-                'context': context_data,
-                'delegate': delegate }
-        
-        self._jobs.append(job) 
-        return None
-        
-        
-    def _sign_transaction(self, acct_addr, unsigned_tx_str,delegate, context_data):
-        '''
-        Make sure account is in the keystore and unlocked, then sign the tx
-        unsigned_tx_str is hex-encoded. probably starts with '0x'
-        '''            
-        priv_key = None
-        errmsg = None
-        errcode = EthTxSigDelegate.SUCCESS
-
-        v_addr = utils.validate_address(acct_addr)
-        if not v_addr:
-            errmsg = 'Invalid account address: {0}'.format(acct_addr)
-            errcode = EthTxSigDelegate.INVALID_ADDR
-            
-        if not errmsg:
-            acct_data = self._accounts.get(v_addr)
-            if not acct_data:
-                errmsg = 'Account: {0} not in keystore'.format(v_addr)
-                errcode = EthTxSigDelegate.UNKNOWN_ADDR                
-                
-        if not errmsg:
-            priv_key = self._cached_pks.get(v_addr)
-            if not priv_key:
-                errmsg = 'Account locked: {0}'.format(v_addr)
-                errcode = EthTxSigDelegate.ADDR_LOCKED 
-                  
-        signed_tx = None
-        if priv_key:
-            utx = TxData.createFromTxData(unsigned_tx_str)
-            signed_tx = utx.getSignedTxData(int_to_bytes(priv_key))
-        
-        if delegate:        
-            delegate.on_transaction_signed(context_data, signed_tx, errcode, errmsg)
-        
-        return (signed_tx, errcode, errmsg)
- 
-        

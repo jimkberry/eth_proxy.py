@@ -7,6 +7,11 @@ from eth_proxy import EthProxyHttp
 from eth_proxy.node_signer import EthNodeSigner
 from eth_proxy.solc_caller import SolcCaller
 
+# If true, use a LocalKeystore implementation and the
+# accounts specifed. Else, use an EthNodeSigner
+# and the 1st no accounts it maanges (assume they are
+# unlocked)
+USE_LOCAL_KEYSTORE = False
 
 #
 # End-to-end test using low-level EtherProxy API
@@ -36,19 +41,39 @@ rpc_port=8545
 # the EthProxy
 eth = EthProxyHttp(rpc_host, rpc_port)
 
-accounts = eth.eth_accounts()
-print("\neth_accounts(): {0}".format(accounts))
-
 block = eth.eth_blockNumber()  # Trivial test (are we connected?)
 print("\neth_blockNumber(): {0}".format(block))
 
-#
-# A Keystore that is really the ethereum node
-#
-keystore = EthNodeSigner(eth)
 
-account = accounts[0]
-account2 = accounts[1]
+if USE_LOCAL_KEYSTORE:
+    #
+    # A keystore that manages accounts locally in files
+    # that are interoperable with e geth keystore
+    #
+    from eth_proxy.local_keystore import EthLocalKeystore
+    keystore_path = '/home/jim/etherpoker/etherpoker/poker_keystore'
+    account = '0x43f41cdca2f6785642928bcd2265fe9aff02911a'
+    pw = 'foo'
+    account2 = '0x510c1ffb6d4236808e7d54bb62741681ace6ea88'
+    
+    keystore = EthLocalKeystore(keystore_path)
+    errmsg = keystore.unlock_account(account, pw)
+    if errmsg:
+        print("Error unlocking acct: {0} \nMsg: {1}.".format(account, errmsg))
+        exit()
+    print('Account unlocked.')    
+
+
+else:
+    # A Keystore that is really the ethereum node
+    keystore = EthNodeSigner(eth)
+    
+    accounts = keystore.list_accounts()
+    print("\neth_accounts(): {0}".format(accounts))
+    account = accounts[0]
+    account2 = accounts[1]
+
+
 
 # A global nonce for "account"
 nonce = eth.eth_getTransactionCount(account, return_raw=False)
