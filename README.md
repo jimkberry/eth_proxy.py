@@ -22,15 +22,25 @@ Makes it seem that you are dealing directly with the Node itself. `Call eth_cloc
 
 Implements all Ethereum JSON-RPC commands. Many of these commands take an optional named "return_raw" boolean (defaults to False) that if True tells EthProxy to return the actual hex string returned by the JSON command, rather than translating it into an appropriate native type.
 
-Implements transactions unsing a 3-step *Prepare/Sign/Submit* abstraction. First you **prepare** a transaction by calling `prepareSimpleTransaction()`, `prepareContractCreationTx()`, or `prepareContractFunctionTx()` depending on what you are trying to do. The result is a hex-encoded unsigned transaction. Next you **sign** the transaction (there are helpers and a protocol for this) however you see fit. Then you **submit** the transaction using `eth_sendRawTransaction()`
+Implements transactions unsing a 3-step *Prepare/Sign/Submit* abstraction. First you **prepare** a transaction by calling `prepareSimpleTransaction()`, `prepareContractCreationTx()`, or `prepareContractFunctionTx()` depending on what you are trying to do. 
 
-An application will typically use some these low-level calls, but will normall use the high-level API. They are interoperable.
+These 3 methods "prepare" an unsigned  transaction. In other words, they take the parameters that go into the transaction (to, from, contract addr, function signature and params…), RLP encode them, and then return a hex string which represents the transaction and could be sent to `eth_sendRawTransaction()`. 
 
-*Mid-level Synchronous*
+But it can't be sent to `eth_sendRawTransaction()` because it's not signed. The `EthProxy` class itself does not sign transactions because this will generally be delegated to some external actor. On the other hand, the library provides a `TranasctionSigner` interface which can be used to connect to a signer. It also provides (mostly as an example) a `LocalKeystore` class which implements TransactionSigner and can manage accounts locally, as well as a `NodeSigner` class which talsk to an ethereum node and signs transactions for accounts that the node manages.
 
-*High-level Asynchronous*
+After the transaction is signed (the result is another hex string representing an RLP-encoded transaction) it can be sent to `eth_sendRawTansaction()`
 
-*Extras*
+In addition, there is a `getTransactionLogs()` method which fetches log entries from the receipt for a particular tx hash. I do that a lot and wanted a shorthand way to do it.
+
+An application will typically use some these low-level calls, but will normally use the high-level API. They are interoperable.
+
+#### Mid-level Synchronous ####
+
+
+
+#### High-level Asynchronous ####
+
+#### Extras ####
 
 ## Installing ##
 
