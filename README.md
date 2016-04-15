@@ -12,11 +12,19 @@ Desired features:
 - Be useful for ad-hoc prototyping: developers should be able to write simple linear scripts that can provide end-to-end function: create a contract, wait for it to be mined, send it some data, etc - all in a single serial script.
 - Provide a high-level delegate-based asynchronous API for applications. 
 - Include an abstraction of an Ethrerum contract which can manage source code, ABI definitions and all of that, and leave a developer with the ability to interact with a contract in a natural-seeming way.
-- Have hooks of some sort to help deal with transaction signing in a "ready for prim time" way. Don't assume unlocked node-managed accounts (but do support them.)
+- Have hooks of some sort to help deal with transaction signing in a "ready for prime time" way. Don't assume unlocked node-managed accounts (but do support them.)
 
 ## Layers ##
 
-*Low Level*
+#### Low Level ####
+
+Makes it seem that you are dealing directly with the Node itself. `Call eth_clocknumber()` and get a number back. Transactions and contracts are not super-easy this way, because the calling code is responsible for know about and handling the idea that you have to wait and check for results.
+
+Implements all Ethereum JSON-RPC commands. Many of these commands take an optional named "return_raw" boolean (defaults to False) that if True tells EthProxy to return the actual hex string returned by the JSON command, rather than translating it into an appropriate native type.
+
+Implements transactions unsing a 3-step *Prepare/Sign/Submit* abstraction. First you **prepare** a transaction by calling `prepareSimpleTransaction()`, `prepareContractCreationTx()`, or `prepareContractFunctionTx()` depending on what you are trying to do. The result is a hex-encoded unsigned transaction. Next you **sign** the transaction (there are helpers and a protocol for this) however you see fit. Then you **submit** the transaction using `eth_sendRawTransaction()`
+
+An application will typically use some these low-level calls, but will normall use the high-level API. They are interoperable.
 
 *Mid-level Synchronous*
 
