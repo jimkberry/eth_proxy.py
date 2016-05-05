@@ -8,9 +8,11 @@ setup(name='eth_proxy',
       author_email='jimkberry@gmail.com',
       license='',
       packages=['eth_proxy'],
+      setup_requires =['pytest-runner',],
+    tests_require=['pytest',],      
       install_requires=[
           'requests',
           'pycryptodome',
-          'rlp'
+          'rlp',
       ],      
       zip_safe=False)

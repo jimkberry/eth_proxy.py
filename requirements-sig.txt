@@ -2,7 +2,6 @@ requests
 rlp
 pycryptodome
 
-
 # Stuff for signing transactions
 # In general a client using eth_proxy does not 
 # need to do this.
