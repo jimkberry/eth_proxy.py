@@ -3,7 +3,7 @@ import logging as log
 import pprint
 import time
 
-from eth_proxy import EthProxyHttp
+from eth_proxy import eth_proxy_factory
 from eth_proxy.node_signer import EthNodeSigner
 from eth_proxy.solc_caller import SolcCaller
 
@@ -31,15 +31,16 @@ log.getLogger("urllib3").setLevel(log.WARNING)
 
 
 # The node
-rpc_host='localhost'
-#rpc_host='162.243.42.95'
-rpc_port=8545
+#eth_host = 'http://localhost:8545'
+#eth_host = 'https://consensysnet.infura.io:8545'
+eth_host = 'ipc:/home/jim/cons-testnet-geth/data/geth.ipc'
+
 
 
 # Create some global test-wide objects
 
 # the EthProxy
-eth = EthProxyHttp(rpc_host, rpc_port)
+eth = eth_proxy_factory(eth_host)
 
 block = eth.eth_blockNumber()  # Trivial test (are we connected?)
 print("\neth_blockNumber(): {0}".format(block))
