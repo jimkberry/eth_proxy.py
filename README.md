@@ -14,19 +14,17 @@ Desired features:
 - Include an abstraction of an Ethrerum contract which can manage source code, ABI definitions and all of that, and leave a developer with the ability to interact with a contract in a natural-seeming way.
 - Have hooks of some sort to help deal with transaction signing in a "ready for prime time" way. Don't assume unlocked node-managed accounts (but do support them.)
 
-## Layers ##
+## API Layers ##
 
 #### Low Level ####
 
-Makes it seem that you are dealing directly with the Node itself. `Call eth_clocknumber()` and get a number back. Transactions and contracts are not super-easy this way, because the calling code is responsible for know about and handling the idea that you have to wait and check for results.
+Makes it seem that you are dealing directly with the node itself. `Call eth_blockNumber()` and you get a number back. Working with transactions and contracts is not not super-easy this way.
 
-Implements all Ethereum JSON-RPC commands. Many of these commands take an optional named "return_raw" boolean (defaults to False) that if True tells EthProxy to return the actual hex string returned by the JSON command, rather than translating it into an appropriate native type.
+Implements all (maybe) Ethereum JSON-RPC commands. Many of these commands take an optional boolean parameter named "return_raw" (defaults to False) that if True tells EthProxy to return the actual hex string returned by the JSON command, rather than translating it into an appropriate python type.
 
-Implements transactions using a 3-step *Prepare/Sign/Submit* abstraction. First you **prepare** a transaction by calling `prepareSimpleTransaction()`, `prepareContractCreationTx()`, or `prepareContractFunctionTx()` depending on what you are trying to do. 
+Transactions are handled using a 3-step *Prepare/Sign/Submit* abstraction. First you **prepare** a transaction by calling `prepareSimpleTransaction()`, `prepareContractCreationTx()`, or `prepareContractFunctionTx()` depending on what you are trying to do. These 3 methods take the parameters that go into the transaction (to, from, contract addr, function signature and params…), RLP encode them, and then return a hex string which represents the transaction and that could be sent to `eth_sendRawTransaction()`. 
 
-These 3 methods take the parameters that go into the transaction (to, from, contract addr, function signature and params…), RLP encode them, and then return a hex string which represents the signed transaction and that could be sent to `eth_sendRawTransaction()`. 
-
-But it can't be sent to `eth_sendRawTransaction()` because it's not signed. The `EthProxy` class itself does not sign transactions because this will generally be delegated to some external actor. On the other hand, the library provides a `TranasctionSigner` interface which can be used to connect to a signer. It also provides (mostly as an example) a `LocalKeystore` class which implements TransactionSigner and manages accounts locally, as well as a `NodeSigner` class which talks to an ethereum node and had tehe node sign transactions for accounts that are managed by it (and unlocked).
+But it can't be sent to `eth_sendRawTransaction()` because it's not signed. The `EthProxy` class itself does not sign transactions because this will generally be delegated to some external actor anyway. On the other hand, the library provides a `TranasctionSigner` interface which can be used to connect to a signer. It also provides (mostly as an example) a `LocalKeystore` class which implements TransactionSigner and manages accounts locally, as well as a `NodeSigner` class which talks to an ethereum node and has the node sign transactions for accounts that are managed by it (and unlocked).
 
 After the transaction is signed it can be sent to `eth_sendRawTansaction()`
 
@@ -36,7 +34,11 @@ An application will typically use some these low-level calls, but will normally 
 
 #### Mid-level Synchronous ####
 
+This API is is mostly intended to allow developers to write simple scripts that can interact with transactions. The main feature of these methods is that they wait for transaction to be found in the current block before they return. Nothing real fancy - they just sleep/poll.
 
+Functions at this level (and the high-level async as well) require that you call `attach_account( account_addr)` and `set_transaction_signer( EthereumTxSigner implementation)` after creating the `EthProxy` class.
+
+Mid-level methods are `submit_transaction_sync()`, `install_compiled_contract_sync()` and `contract_function_tx_sync()` which first call the appropriate _prepare_ method for the type of transaction, then sign and submit it, and then wait for it to appear in the blockchain.
 
 #### High-level Asynchronous ####
 
