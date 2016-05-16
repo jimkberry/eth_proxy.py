@@ -211,7 +211,7 @@ class EthProxyBase(EthTxSigDelegate):
 # TX Signing stuff
 #
 # Similar to the transaction polling, there is also a simple facility to check for 
-# signed transactions returned by TrasnactionSigner implementations
+# signed transactions returned by TransactionSigner implementations
 #
 
     # EthTxSigDelegate API
@@ -231,7 +231,6 @@ class EthProxyBase(EthTxSigDelegate):
                 # It was signed OK, so submit it
                 tx_hash = self.eth_sendRawTransaction(signed_tx)
                 if not tx_hash:
-                    # submission appears good
                     tx_result = TransactionDelegate.RESULT_FAILURE
                     err_msg = "sendRawTransaction() failed"
                 
