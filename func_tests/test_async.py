@@ -1,58 +1,9 @@
-import argparse
 import logging as log
-import pprint
 import time
-import os
-import codecs
 
-from eth_proxy import EthProxyHttp, TransactionDelegate, EthNodeSigner, SolcCaller
+from eth_proxy import TransactionDelegate, SolcCaller
+import func_setups as fs
 
-#
-# End-to-end test using mid-level syncronous EtherProxy API
-# NOT a full unit test
-# 
-
-
-
-#defaults
-
-rpc_host='localhost'
-#rpc_host='162.243.42.95'
-rpc_port=8545
-
-
-# I want logging to look like this
-log.basicConfig(level=log.INFO,
-                    format=('%(levelname)s:'
-                                '%(name)s():'
-                                '%(funcName)s():'
-                                ' %(message)s'))
-
-# don't want info logs from "requests" (there's a lot of 'em)
-log.getLogger("requests").setLevel(log.WARNING)  
-log.getLogger("urllib3").setLevel(log.WARNING)
-
-# might want this
-pp = pprint.PrettyPrinter(depth=6)
-
-
-# Create some global test-wide objects
-
-# the EthProxy
-eth = EthProxyHttp(rpc_host, rpc_port)
-block = eth.eth_blockNumber()  # Trivial test (are we connected?)
-print("\neth_blockNumber(): {0}".format(block))
-
-#
-# A Keystore that is really the ethereum node
-#
-keystore = EthNodeSigner(eth)
-
-accounts = eth.eth_accounts()
-print("\neth_accounts(): {0}".format(accounts))
-
-account = accounts[0]
-account2 = accounts[1]
 
 #
 # Create a simple contract with ctor params
@@ -140,15 +91,17 @@ class async_tester(TransactionDelegate):
     #
     
     def setup_ethProxy(self):
-        self.eth = EthProxyHttp(rpc_host, rpc_port)
-        keystore = EthNodeSigner(self.eth)
+        self.eth = eth = fs.create_proxy()
+        keystore = fs.create_keystore(self.eth)
         # Set up proxy for this account
-        self.eth.set_transaction_signer(keystore)
-        self.eth.attach_account(account)    
+        self.eth.set_eth_signer(keystore)
+        self.account = fs.get_account(keystore, 0)
+        self.eth.attach_account(self.account)    
+
         
     def run(self):
         self.setup_ethProxy()
-        ether = self.eth.eth_getBalance(account)
+        ether = self.eth.eth_getBalance(self.account)
         log.info("Ether balance: {0}".format(ether))
         if not ether:
             return
@@ -209,7 +162,7 @@ class async_tester(TransactionDelegate):
                                               function_signature='aPublicInt()', 
                                               function_parameters=None,
                                               result_types=['int32'], 
-                                              from_address=account)
+                                              from_address=self.account)
         print("Result {0}".format(result))    
 
         self.state = self.STATE_DONE        
@@ -223,7 +176,7 @@ if __name__ =="__main__":
     '''
     Test it all
     '''  
-    log.info("\nRunning async test...\n")
+    log.info("Running async test...\n")
     tester = async_tester()
     tester.run()
     log.info("Done async test...\n")

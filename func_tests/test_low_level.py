@@ -1,79 +1,22 @@
 
 import logging as log
-import pprint
 import time
 
-from eth_proxy import eth_proxy_factory
-from eth_proxy.node_signer import EthNodeSigner
 from eth_proxy.solc_caller import SolcCaller
+import func_setups as fs
 
-# If true, use a LocalKeystore implementation and the
-# accounts specifed. Else, use an EthNodeSigner
-# and the 1st no accounts it maanges (assume they are
-# unlocked)
-USE_LOCAL_KEYSTORE = True
-
-#
-# End-to-end test using low-level EtherProxy API
-# NOT a full unit test
-# 
-
-
-# I want logging to look like this
-log.basicConfig(level=log.INFO,
-                    format=('%(levelname)s:'
-                                '%(name)s():'
-                                '%(funcName)s():'
-                                ' %(message)s'))
-# don't want info logs from "requests" (there's a lot of 'em)
-log.getLogger("requests").setLevel(log.WARNING)  
-log.getLogger("urllib3").setLevel(log.WARNING)
-
-
-# The node
-#eth_host = 'http://localhost:8545'
-eth_host = 'https://consensysnet.infura.io:8545'
-#eth_host = 'ipc:/home/jim/cons-testnet-geth/data/geth.ipc'
-
-
-
-# Create some global test-wide objects
 
 # the EthProxy
-eth = eth_proxy_factory(eth_host)
+eth = fs.create_proxy()
 
 block = eth.eth_blockNumber()  # Trivial test (are we connected?)
 print("\neth_blockNumber(): {0}".format(block))
 
-
-if USE_LOCAL_KEYSTORE:
-    #
-    # A keystore that manages accounts locally in files
-    # that are interoperable with e geth keystore
-    #
-    from eth_proxy.local_keystore import EthLocalKeystore
-    keystore_path = '/home/jim/etherpoker/etherpoker/poker_keystore'
-    account = '0x43f41cdca2f6785642928bcd2265fe9aff02911a'
-    pw = 'foo'
-    account2 = '0x510c1ffb6d4236808e7d54bb62741681ace6ea88'
-    
-    keystore = EthLocalKeystore(keystore_path)
-    errmsg = keystore.unlock_account(account, pw)
-    if errmsg:
-        print("Error unlocking acct: {0} \nMsg: {1}.".format(account, errmsg))
-        exit()
-    print('Account unlocked.')    
+keystore = fs.create_keystore(eth)
 
 
-else:
-    # A Keystore that is really the ethereum node
-    keystore = EthNodeSigner(eth)
-    
-    accounts = keystore.list_accounts()
-    print("\neth_accounts(): {0}".format(accounts))
-    account = accounts[0]
-    account2 = accounts[1]
-
+account = fs.get_account(keystore, 0)
+account2 = fs.get_account(keystore, 1)
 
 
 # A global nonce for "account"

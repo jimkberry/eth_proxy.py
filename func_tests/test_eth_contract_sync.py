@@ -1,31 +1,11 @@
-import argparse
 import logging as log
-import pprint
-import time
-import os
-import codecs
-
-from eth_proxy import EthProxyHttp, TransactionDelegate, EthNodeSigner
-from eth_proxy import SolcCaller, EthContract
+from eth_proxy import EthProxyHttp, EthNodeSigner
+from eth_proxy import EthContract
+import func_setups as fs
 
 # End-to-end test using EthContract abstraction
 # in synchronous mode (for quickie development)
 
-#defaults
-rpc_host='localhost'
-#rpc_host='162.243.42.95'
-rpc_port=8545
-
-# I want logging to look like this
-log.basicConfig(level=log.INFO,
-                    format=('%(levelname)s:'
-                                '%(name)s():'
-                                '%(funcName)s():'
-                                ' %(message)s'))
-
-# don't want info logs from "requests" (there's a lot of 'em)
-log.getLogger("requests").setLevel(log.WARNING)  
-log.getLogger("urllib3").setLevel(log.WARNING)
 
 #
 # Create a simple contract with ctor params
@@ -57,13 +37,12 @@ contract_src = \
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 
-eth = EthProxyHttp(rpc_host, rpc_port)
+eth = fs.create_proxy()
+keystore = fs.create_keystore(eth)
+account = fs.get_account(keystore, 0)
 
-keystore = EthNodeSigner(eth)
-account = keystore.list_accounts()[0]
 
-
-eth.set_transaction_signer(keystore)
+eth.set_eth_signer(keystore)
 eth.attach_account(account)    
         
 log.info("\nRunning EthContract test...\n")

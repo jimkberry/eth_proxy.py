@@ -1,63 +1,21 @@
-import argparse
-import logging as log
-import pprint
-import time
-import os
-import codecs
 
-from eth_proxy import EthProxyHttp, TransactionDelegate
 from eth_proxy.node_signer import EthNodeSigner
 from eth_proxy.solc_caller import SolcCaller
-
-#
-# End-to-end test using mid-level syncronous EtherProxy API
-# NOT a full unit test
-# 
-
-
-#defaults
-
-rpc_host='localhost'
-#rpc_host='162.243.42.95'
-rpc_port=8545
-
-
-# I want logging to look like this
-log.basicConfig(level=log.INFO,
-                    format=('%(levelname)s:'
-                                '%(name)s():'
-                                '%(funcName)s():'
-                                ' %(message)s'))
-
-# don't want info logs from "requests" (there's a lot of 'em)
-log.getLogger("requests").setLevel(log.WARNING)  
-log.getLogger("urllib3").setLevel(log.WARNING)
-
-# might want this
-pp = pprint.PrettyPrinter(depth=6)
-
-
-# Create some global test-wide objects
+import func_setups as fs
 
 # the EthProxy
-eth = EthProxyHttp(rpc_host, rpc_port)
+eth = fs.create_proxy()
+
 block = eth.eth_blockNumber()  # Trivial test (are we connected?)
 print("\neth_blockNumber(): {0}".format(block))
 
-#
-# A Keystore that is really the ethereum node
-#
-keystore = EthNodeSigner(eth)
+keystore = fs.create_keystore(eth)
 
-accounts = eth.eth_accounts()
-print("\neth_accounts(): {0}".format(accounts))
-
-account = accounts[0]
-account2 = accounts[1]
-
+account = fs.get_account(keystore, 0)
+account2 = fs.get_account(keystore, 1)
 
 # Set up eth for this account
-eth.set_transaction_signer(keystore)
+eth.set_eth_signer(keystore)
 eth.attach_account(account)
 
 #
