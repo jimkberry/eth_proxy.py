@@ -163,7 +163,10 @@ class EthContract(TransactionDelegate):
         '''
         Called when transaction is found in the chain - or times out
         '''
-        self.log.info("Context: {0}, addr: {1} err: {2} - {3}".format(delegate_data, contract_addr, err, err_msg)) 
+        self.log.info("Context: {0}, addr: {1} HasCode: {2} err: {3} - {4}".format(delegate_data, 
+                                                                                   contract_addr, 
+                                                                                   has_code,
+                                                                                   err, err_msg)) 
         if delegate_data == self.CREATION_CONTEXT:
             if err == TransactionDelegate.RESULT_SUCCESS:
                 self._addr = contract_addr
@@ -246,6 +249,9 @@ class EthContract(TransactionDelegate):
         of a pre-existing contract, use this to set it
         '''
         self._addr = address
+        code = self._eth.eth_getCode(address)
+        if code:
+            self._installed = True
                 
     def transaction(self, methodName, params=None, delegate_info=None, timeout_secs=None, value=0):
         '''
