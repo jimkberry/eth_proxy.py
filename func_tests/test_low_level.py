@@ -11,7 +11,7 @@ from eth_proxy.solc_caller import SolcCaller
 # accounts specifed. Else, use an EthNodeSigner
 # and the 1st no accounts it maanges (assume they are
 # unlocked)
-USE_LOCAL_KEYSTORE = False
+USE_LOCAL_KEYSTORE = True
 
 #
 # End-to-end test using low-level EtherProxy API
@@ -32,8 +32,8 @@ log.getLogger("urllib3").setLevel(log.WARNING)
 
 # The node
 #eth_host = 'http://localhost:8545'
-#eth_host = 'https://consensysnet.infura.io:8545'
-eth_host = 'ipc:/home/jim/cons-testnet-geth/data/geth.ipc'
+eth_host = 'https://consensysnet.infura.io:8545'
+#eth_host = 'ipc:/home/jim/cons-testnet-geth/data/geth.ipc'
 
 
 
