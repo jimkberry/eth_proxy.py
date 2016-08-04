@@ -1,6 +1,6 @@
 #
 #
-class EthereumTxSigner(object):
+class EthereumSigner(object):
     '''
      Mixin to define an API that a class can use to declare that
      it is capable of signing an Ethereum transaction  
@@ -13,7 +13,7 @@ class EthereumTxSigner(object):
         Params:
             acct_addr - etherem account hex address
             unsigned_tx -  RLP-encoded raw unsigned tx
-            delegate - A class implementing the EthTxSigDelegate mixin.
+            delegate - A class implementing the EthSigDelegate mixin.
             context_data - data passed back to the delegate unchanged
                 
         Returns: Nothing 
@@ -21,10 +21,10 @@ class EthereumTxSigner(object):
         raise NotImplementedError()
 
 
-class EthTxSigDelegate(object):
+class EthSigDelegate(object):
     '''
     Mixin defining API needed by a class that wishes to
-    callEthereumTxSigner.sign_transaction()
+    callEthereumSigner.sign_transaction()
     '''
     
     SUCCESS = 0

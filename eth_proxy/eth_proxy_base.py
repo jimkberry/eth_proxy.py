@@ -6,13 +6,13 @@ import time
 from types import ListType
 
 from tx_delegate import TransactionDelegate
-from tx_signer import EthTxSigDelegate
+from eth_signer import EthSigDelegate
 from utils import hex_str_to_int
 import pyeth_client.eth_abi as abi
 import pyeth_client.eth_utils as utils
 from pyeth_client.eth_txdata import TxData
 
-class EthProxyBase(EthTxSigDelegate):
+class EthProxyBase(EthSigDelegate):
     '''
     Base class for Ethereum proxy object, which implements
     a connection to an ethereum node along with other features.
@@ -42,7 +42,7 @@ class EthProxyBase(EthTxSigDelegate):
     def __init__(self):
         self.acct_addr = None # ethereum account
         self.acct_nonce = None # we manage this. Resets when acct is changed.
-        self.tx_signer = None # instance of an EthereumTxSigner
+        self.eth_signer = None # instance of an EthereumSigner
         self.log = logging.getLogger(__name__)        
         self.default_timeout_secs = 120        
         self._pending_tx = []   # {hash: tx_hash, timeout: timeout, type: TX_<foo>,
@@ -214,7 +214,7 @@ class EthProxyBase(EthTxSigDelegate):
 # signed transactions returned by TransactionSigner implementations
 #
 
-    # EthTxSigDelegate API
+    # EthSigDelegate API
     def on_transaction_signed(self, context_data, signed_tx, result_code, err_msg=None):        
         '''
         This is the callback from a TransactionSigner.
@@ -227,7 +227,7 @@ class EthProxyBase(EthTxSigDelegate):
         if job: # Found it in the "waiting for it" list
             tx_hash = None
             tx_result = TransactionDelegate.RESULT_SUCCESS
-            if result_code == EthTxSigDelegate.SUCCESS:
+            if result_code == EthSigDelegate.SUCCESS:
                 # It was signed OK, so submit it
                 tx_hash = self.eth_sendRawTransaction(signed_tx)
                 if not tx_hash:
@@ -276,13 +276,13 @@ class EthProxyBase(EthTxSigDelegate):
 #
 # Needed for mid- and high-level calls (not for low, node-level calls)
 #
-    def set_transaction_signer(self, tx_signer):
+    def set_eth_signer(self, eth_signer):
         '''
-        tx_signer must implement EthereumTxSigner and return
-        data via an EthTxSigDelegate passed with the transaction 
+        eth_signer must implement EthereumSigner and return
+        data via an EthSigDelegate passed with the transaction 
         request
         '''
-        self.tx_signer = tx_signer
+        self.eth_signer = eth_signer
     
     def attach_account(self, acct_addr):
         self.acct_addr = acct_addr
@@ -323,7 +323,7 @@ class EthProxyBase(EthTxSigDelegate):
         '''
         sig_req_id = utx[:16]
         self._watch_for_sig(sig_req_id, delegate_info, timeout_secs, gas_price)
-        self.tx_signer.sign_transaction(self.acct_addr, utx, self, sig_req_id)      
+        self.eth_signer.sign_transaction(self.acct_addr, utx, self, sig_req_id)      
  
 
     def submit_transaction(self, to_address=None, data=None,gas=None, gas_price=None, value=0, 

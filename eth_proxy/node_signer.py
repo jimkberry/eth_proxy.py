@@ -10,7 +10,7 @@ import rlp
 import utils
 from pyeth_client.eth_utils import int_to_bytes, sha3
 from pyeth_client.eth_txdata import TxData, UnsignedTxData
-from tx_signer import EthereumTxSigner, EthTxSigDelegate
+from eth_signer import EthereumSigner, EthSigDelegate
        
 #
 # Implements a sort of fake "signer" that will call 
@@ -19,7 +19,7 @@ from tx_signer import EthereumTxSigner, EthTxSigDelegate
 #       
        
 
-class EthNodeSigner(EthereumTxSigner):
+class EthNodeSigner(EthereumSigner):
     '''
     Talks to an ethereum node and gets information about accounts that it manages
     and also asks it to sign transactions
@@ -43,19 +43,19 @@ class EthNodeSigner(EthereumTxSigner):
         Queries a running node.
         '''
         errmsg = None
-        errcode = EthTxSigDelegate.SUCCESS
+        errcode = EthSigDelegate.SUCCESS
         all_accts = self.list_accounts()
         signed_tx = None
 
         v_addr = utils.validate_address(acct_addr)
         if not v_addr:
             errmsg = 'Invalid account address: {0}'.format(acct_addr)
-            errcode = EthTxSigDelegate.INVALID_ADDR
+            errcode = EthSigDelegate.INVALID_ADDR
             
         if not errmsg:  
             if not v_addr in all_accts:
                 errmsg = 'Account: {0} not in keystore'.format(v_addr)
-                errcode = EthTxSigDelegate.UNKNOWN_ADDR                
+                errcode = EthSigDelegate.UNKNOWN_ADDR                
                 
         if not errmsg:
             tx = TxData.createFromTxData(unsigned_tx_str)
@@ -67,7 +67,7 @@ class EthNodeSigner(EthereumTxSigner):
  
         return (signed_tx, errcode, errmsg)
  
-    # EthereumTxSigner API  
+    # EthereumSigner API  
     def sign_transaction(self, acct_addr, unsigned_tx_str, delegate=None, context_data=None): 
         '''
         This particular implementation allows for synchronous signing by not providing a delegate

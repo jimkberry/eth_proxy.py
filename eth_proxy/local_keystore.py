@@ -11,7 +11,7 @@ import rlp
 from pyeth_client.eth_utils import int_to_bytes, to_string, sha3
 from pyeth_client.eth_txdata import TxData, UnsignedTxData
 import pyeth_client.eth_keys as keys
-from tx_signer import EthereumTxSigner, EthTxSigDelegate
+from eth_signer import EthereumSigner, EthSigDelegate
 
 # use bitcoin lib as a backup       
 try:
@@ -28,7 +28,7 @@ except ImportError:
 #       
        
 
-class EthLocalKeystore(EthereumTxSigner):
+class EthLocalKeystore(EthereumSigner):
     '''
     Stores encrypted account info as json files inside
     a directory. 1 file per account.
@@ -148,24 +148,24 @@ class EthLocalKeystore(EthereumTxSigner):
         '''
         priv_key = None
         errmsg = None
-        errcode = EthTxSigDelegate.SUCCESS
+        errcode = EthSigDelegate.SUCCESS
 
         v_addr = utils.validate_address(acct_addr)
         if not v_addr:
             errmsg = 'Invalid account address: {0}'.format(acct_addr)
-            errcode = EthTxSigDelegate.INVALID_ADDR
+            errcode = EthSigDelegate.INVALID_ADDR
             
         if not errmsg:
             acct_data = self._accounts.get(v_addr)
             if not acct_data:
                 errmsg = 'Account: {0} not in keystore'.format(v_addr)
-                errcode = EthTxSigDelegate.UNKNOWN_ADDR                
+                errcode = EthSigDelegate.UNKNOWN_ADDR                
                 
         if not errmsg:
             priv_key = self._cached_pks.get(v_addr)
             if not priv_key:
                 errmsg = 'Account locked: {0}'.format(v_addr)
-                errcode = EthTxSigDelegate.ADDR_LOCKED 
+                errcode = EthSigDelegate.ADDR_LOCKED 
                   
         signed_tx = None
         if priv_key:
@@ -176,7 +176,7 @@ class EthLocalKeystore(EthereumTxSigner):
         
         return (signed_tx, errcode, errmsg)
  
-    # EthereumTxSigner API  
+    # EthereumSigner API  
     def sign_transaction(self, acct_addr, unsigned_tx_str, delegate=None, context_data=None): 
         '''
         This particular implementation allows for synchronous signing by not providing a delegate
