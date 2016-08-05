@@ -176,15 +176,61 @@ class EthLocalKeystore(EthereumSigner):
         
         return (signed_tx, errcode, errmsg)
  
+    def _do_sign_data(self, acct_addr, data):
+        '''
+        Make sure account is in the keystore and unlocked, then sign the tx
+        data typically (always?) a hash
+        returns a packed signature string
+        '''
+        priv_key = None
+        errmsg = None
+        errcode = EthSigDelegate.SUCCESS
+
+        v_addr = utils.validate_address(acct_addr)
+        if not v_addr:
+            errmsg = 'Invalid account address: {0}'.format(acct_addr)
+            errcode = EthSigDelegate.INVALID_ADDR
+            
+        if not errmsg:
+            acct_data = self._accounts.get(v_addr)
+            if not acct_data:
+                errmsg = 'Account: {0} not in keystore'.format(v_addr)
+                errcode = EthSigDelegate.UNKNOWN_ADDR                
+                
+        if not errmsg:
+            priv_key = self._cached_pks.get(v_addr)
+            if not priv_key:
+                errmsg = 'Account locked: {0}'.format(v_addr)
+                errcode = EthSigDelegate.ADDR_LOCKED 
+                  
+        signature = None
+        if priv_key:
+            v, r, s = ecdsa_sign_raw(data, priv_key)                  
+            signature = utils.vrs_to_sig(v, r, s)
+        
+        return (signature, errcode, errmsg)
+ 
     # EthereumSigner API  
     def sign_transaction(self, acct_addr, unsigned_tx_str, delegate=None, context_data=None): 
         '''
+        TODO: make this go away (transaction logic should be in an EthTransaction class)
         This particular implementation allows for synchronous signing by not providing a delegate
         '''
         (signed_tx, errcode, errmsg) = self._do_sign_transaction(acct_addr, unsigned_tx_str)
         if delegate:
             delegate.on_transaction_signed( context_data, signed_tx, errcode, errmsg)
         else:
-            return (signed_tx, errcode, errmsg)  
+            return (signed_tx, errcode, errmsg) 
+        
+    def sign_data(self, acct_addr, data, delegate=None, context_data=None): 
+        '''
+        This particular implementation allows for synchronous signing by not providing a delegate
+        '''
+        (sig, errcode, errmsg) = self._do_sign_data(acct_addr, data)
+        if delegate:
+            delegate.on_data_signed( context_data, sig, errcode, errmsg)
+        else:
+            return (sig, errcode, errmsg) 
  
+
 

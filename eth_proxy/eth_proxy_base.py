@@ -35,7 +35,6 @@ class EthProxyBase(EthSigDelegate):
     # message types
     MSG_NONE = 0
     MSG_NOTHING_PENDING = 1 # called poll_until_msg but there isn;t anything to find
-#    MSG_CONTRACT = 2 # contract created
     MSG_TX = 2 # transaction found    
     
     
@@ -45,7 +44,7 @@ class EthProxyBase(EthSigDelegate):
         self.eth_signer = None # instance of an EthereumSigner
         self.log = logging.getLogger(__name__)        
         self.default_timeout_secs = 120        
-        self._pending_tx = []   # {hash: tx_hash, timeout: timeout, type: TX_<foo>,
+        self._pending_tx = []   # {hash: tx_hash, timeout: timeout, 
                                 #  delegate_info: (delegate, del_data) or list of em }     
         self._txs_for_sig = {}  # txs waiting for signature
     
@@ -418,7 +417,7 @@ class EthProxyBase(EthSigDelegate):
         return tx_data 
 
 
-    def _do_submit_transaction_sync(self):
+    def _do_wait_for_tx(self):
         '''
         Wait for the next tx in the chain
         Returns a dict full of tx_info
@@ -431,7 +430,8 @@ class EthProxyBase(EthSigDelegate):
     def submit_transaction_sync(self,to_address=None, data=None,gas=None, gas_price=None, 
                                   value=0,timeout_secs=None):
         '''
-        Submit and then wait for the tx in the chain
+        Submit async with this class as the delegate, 
+        then wait for the tx in the chain
         Returns a dict full of tx_info
         '''        
         self.submit_transaction(to_address=to_address, 
@@ -441,7 +441,7 @@ class EthProxyBase(EthSigDelegate):
                                           value=value,
                                           timeout_secs=timeout_secs)
         
-        return self._do_submit_transaction_sync()
+        return self._do_wait_for_tx()
   
     def install_compiled_contract_sync(self, byte_data=None, ctor_sig=None, ctor_params=None, 
                                        gas=None, gas_price=None,  value=0, timeout_secs=None):
@@ -453,7 +453,7 @@ class EthProxyBase(EthSigDelegate):
                                                    gas_price=gas_price,
                                                    value=value, 
                                                    timeout_secs=timeout_secs)
-        return self._do_submit_transaction_sync()
+        return self._do_wait_for_tx()
   
     def contract_function_tx_sync(self, contract_address, function_signature, function_parameters=None,
                                    gas=None, gas_price=None, value=0, delegate_info=None, timeout_secs=None):
@@ -466,11 +466,12 @@ class EthProxyBase(EthSigDelegate):
                                              gas_price=gas_price,
                                              value=value,
                                              timeout_secs=timeout_secs)
-        return self._do_submit_transaction_sync()
+        return self._do_wait_for_tx()
 
 #
 #
 # EthProxy lowest level
+# 
 # TODO: still need to implement sendTransaction(), even though we don;t really use it
 # 
 #
@@ -590,8 +591,10 @@ class EthProxyBase(EthSigDelegate):
         return logs 
  
 #
-# Ethereum node API
 #
+# Ethereum node API 
+#
+# 
   
     def eth_sendTransaction(self, to_address=None, from_address=None,  nonce=None,
                             data=None, gas=None, gas_price=None, value=0):

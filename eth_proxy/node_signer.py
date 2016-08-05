@@ -67,6 +67,30 @@ class EthNodeSigner(EthereumSigner):
  
         return (signed_tx, errcode, errmsg)
  
+    def _do_sign_data(self, acct_addr, data):
+        '''
+        '''
+        errmsg = None
+        errcode = EthSigDelegate.SUCCESS
+        all_accts = self.list_accounts()
+
+        v_addr = utils.validate_address(acct_addr)
+        if not v_addr:
+            errmsg = 'Invalid account address: {0}'.format(acct_addr)
+            errcode = EthSigDelegate.INVALID_ADDR
+            
+        if not errmsg:  
+            if not v_addr in all_accts:
+                errmsg = 'Account: {0} not in keystore'.format(v_addr)
+                errcode = EthSigDelegate.UNKNOWN_ADDR                
+                                 
+        signature = None
+        if not errmsg:
+            signature = self.eth.eth_sign(v_addr, data)        
+        
+        return (signature, errcode, errmsg)
+ 
+ 
     # EthereumSigner API  
     def sign_transaction(self, acct_addr, unsigned_tx_str, delegate=None, context_data=None): 
         '''
@@ -78,4 +102,14 @@ class EthNodeSigner(EthereumSigner):
         else:
             return (signed_tx, errcode, errmsg)  
         
+    def sign_data(self, acct_addr, data, delegate=None, context_data=None): 
+        '''
+        Also allows for synchronous signing by not providing a delegate
+        '''
+        (sig, errcode, errmsg) = self._do_sign_data(acct_addr, data)
+        if delegate:
+            delegate.on_data_signed( context_data, sig, errcode, errmsg)
+        else:
+            return (sig, errcode, errmsg) 
+         
         

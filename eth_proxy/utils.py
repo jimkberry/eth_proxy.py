@@ -6,7 +6,7 @@ import codecs
 def sig_to_vrs(sig):
     '''
     Sig is a 134 character hex-string 
-    ECDSA signature optionally startng with '0x'
+    ECDSA signature optionally starting with '0x'
     We want integers
     '''
     if sig[0:2] != '0x':   
@@ -18,6 +18,21 @@ def sig_to_vrs(sig):
     if v < 27:  # this is either 27 or 28
         v += 27  # or 0 => 27 or 1 => 28
     return v,r,s    
+    
+def vrs_to_sig(v,r,s):
+    '''
+    Opposite of sig_to_vrs.
+    This is for when you have vrs integers (from ecdsa_sign_raw, for instance) and
+    you want a single sig str.
+    '''
+    # Does this issue still exist in geth? My assumption is that v should always be
+    # either 27 or 28, and if it isn't I should (in either direction)  correct it.
+    # True?
+    if v < 27:  # this is either 27 or 28
+        v += 27  # or 0 => 27 or 1 => 28    
+    sig = "0x{v:02x}{s:064x}{r:066x}".format(v=v,r=r,s=s)
+    return sig
+        
     
     
 def hex_str_to_int(hexStr):
