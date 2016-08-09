@@ -3,9 +3,23 @@
 class EthereumSigner(object):
     '''
      Mixin to define an API that a class can use to declare that
-     it is capable of signing an Ethereum transaction  
+     it is capable of signing an Ethereum transaction or data
     '''
 
+    def sign_transaction(self, acct_addr, unsigned_tx, delegate, context_data):
+        '''
+        Asynchronous - returns nothing and results come via the delegate
+        
+        Params:
+            acct_addr - etherem account hex address
+            unsigned_tx -  RLP-encoded raw unsigned tx (hex string)
+            delegate - A class implementing the EthSigDelegate mixin.
+            context_data - data passed back to the delegate unchanged
+                
+        Returns: Nothing 
+        '''
+        raise NotImplementedError()
+    
     def sign_data(self, acct_addr, data, delegate, context_data):
         '''
         Asynchronous - returns nothing and results come via the delegate
@@ -20,20 +34,16 @@ class EthereumSigner(object):
         '''
         raise NotImplementedError()
 
-    
-    def sign_transaction(self, acct_addr, unsigned_tx, delegate, context_data):
+    def recover_address(self, hash_str, signature, delegate=None, context_data=None): 
         '''
-        Asynchronous - returns nothing and results come via the delegate
-        
-        Params:
-            acct_addr - etherem account hex address
-            unsigned_tx -  RLP-encoded raw unsigned tx
-            delegate - A class implementing the EthSigDelegate mixin.
-            context_data - data passed back to the delegate unchanged
-                
-        Returns: Nothing 
+        Asynchronous - returns nothing and results come via the delegate        
+
+        Signature is a single packed hex string
+        Hash is a hex string
+        Recovered address is a hex string
         '''
         raise NotImplementedError()
+        
 
 
 class EthSigDelegate(object):
@@ -67,4 +77,14 @@ class EthSigDelegate(object):
             err_msg - optional information
         '''
         raise NotImplementedError()    
+    
+    def on_address_recovered(self, context_data, addres_str, result_code, err_msg=None):        
+        '''
+        Params:
+            contxt_data - data passed in when sign_transaction() was called
+            address_str - hex-encoded address string
+            result_code - constant defined above
+            err_msg - optional information
+        '''
+        raise NotImplementedError()     
     

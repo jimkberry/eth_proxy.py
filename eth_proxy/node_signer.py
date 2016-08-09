@@ -1,23 +1,30 @@
 #
 #
 import logging
-import os
-import json
-import codecs
-import datetime as dt
 
 import rlp
 import utils
-from pyeth_client.eth_utils import int_to_bytes, sha3
+from pyeth_client.eth_utils import sha3
 from pyeth_client.eth_txdata import TxData, UnsignedTxData
 from eth_signer import EthereumSigner, EthSigDelegate
+from bitcoin import encode_pubkey
+
+# use bitcoin lib as a backup       
+try:
+    from c_secp256k1 import ecdsa_sign_raw, ecdsa_recover_raw
+except ImportError:
+#    import warnings
+#    warnings.warn('missing c_secp256k1 falling back to pybitcointools')
+    from bitcoin import ecdsa_raw_sign as ecdsa_sign_raw
+    from bitcoin import ecdsa_raw_recover as ecdsa_recover_raw       
        
-#
 # Implements a sort of fake "signer" that will call 
 # and ethereum node and ask it to do all the stuff
 #
-#       
-       
+# TODO: Does this even work? I mean, it's only useful for nodes with unlocked
+# accounts, so is not really production-capable anyway, but it's not
+# completely clear that eth_sign() works at all. At least not for geth.
+      
 
 class EthNodeSigner(EthereumSigner):
     '''
@@ -69,6 +76,7 @@ class EthNodeSigner(EthereumSigner):
  
     def _do_sign_data(self, acct_addr, data):
         '''
+?
         '''
         errmsg = None
         errcode = EthSigDelegate.SUCCESS
@@ -90,6 +98,25 @@ class EthNodeSigner(EthereumSigner):
         
         return (signature, errcode, errmsg)
  
+    def _do_recover_address(self, msg, sig):
+        '''
+        Given ahex-encoded hash string
+        and a signature string (as returned from sign_data() or eth_sign())
+        Return a string containing the address that signed it.
+        '''
+        errmsg = None
+        errcode = EthSigDelegate.SUCCESS        
+        addr_str = None
+        try:
+            v,r,s = utils.sig_to_vrs(sig)
+            Q = ecdsa_recover_raw(msg, (v,r,s))
+            pub = encode_pubkey(Q, 'bin')
+            addr = sha3(pub[1:])[-20:]
+            addr_str = '0x{0}'.format(addr.encode('hex'))
+        except Exception as ex:
+            errcode = EthSigDelegate.OTHER_ERROR
+            errmsg = str(ex)
+        return (addr_str, errcode, errmsg) 
  
     # EthereumSigner API  
     def sign_transaction(self, acct_addr, unsigned_tx_str, delegate=None, context_data=None): 
@@ -112,4 +139,17 @@ class EthNodeSigner(EthereumSigner):
         else:
             return (sig, errcode, errmsg) 
          
+    def recover_address(self, hash_str, signature, delegate=None, context_data=None): 
+        '''
+        Given a hash and a signature for it, returns the acct address that 
+        did the signing.
+        Signature is a single packed hex string
+        Hash is a hex string
+        Returned address is a hex string
+        '''
+        (addr, errcode, errmsg) = self._do_recover_address(hash_str, signature)
+        if delegate:
+            delegate.on_address_recovered( context_data, addr)
+        else:
+            return (addr, errcode, errmsg)          
         

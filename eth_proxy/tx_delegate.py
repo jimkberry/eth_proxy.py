@@ -12,8 +12,6 @@ class TransactionDelegate(object):
     
     Also note that methods that take delegateInfo can take either a single tuple, or an LIST of tuples if there
     is a desire that more than one delegate be notified. Notifications will be in the list's order.
-    
-    TODO: is there really a reason to have separate contract and 'regular tx' callbacks?
     '''
     
     # return status

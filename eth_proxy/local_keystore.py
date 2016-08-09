@@ -12,19 +12,19 @@ from pyeth_client.eth_utils import int_to_bytes, to_string, sha3
 from pyeth_client.eth_txdata import TxData, UnsignedTxData
 import pyeth_client.eth_keys as keys
 from eth_signer import EthereumSigner, EthSigDelegate
+from bitcoin import encode_pubkey
 
 # use bitcoin lib as a backup       
 try:
-    from c_secp256k1 import ecdsa_sign_raw
+    from c_secp256k1 import ecdsa_sign_raw, ecdsa_recover_raw
 except ImportError:
 #    import warnings
 #    warnings.warn('missing c_secp256k1 falling back to pybitcointools')
     from bitcoin import ecdsa_raw_sign as ecdsa_sign_raw
-
+    from bitcoin import ecdsa_raw_recover as ecdsa_recover_raw
        
 #
-# Implements a synchronous local keystore and then, just to use as an example,
-# an async implementation of the same keystore
+# Implements an asynchronous local keystore 
 #       
        
 
@@ -143,7 +143,7 @@ class EthLocalKeystore(EthereumSigner):
     def _do_sign_transaction(self, acct_addr, unsigned_tx_str):
         '''
         Make sure account is in the keystore and unlocked, then sign the tx
-        unsigned_tx_str is hex-encoded. probably starts with '0x'
+        unsigned_tx_str is a hex-encoded string. probably starts with '0x'
         returns: (signed_tx, result_code, msg) 
         '''
         priv_key = None
@@ -178,9 +178,10 @@ class EthLocalKeystore(EthereumSigner):
  
     def _do_sign_data(self, acct_addr, data):
         '''
-        Make sure account is in the keystore and unlocked, then sign the tx
-        data typically (always?) a hash
-        returns a packed signature string
+        Make sure account is in the keystore and unlocked, then sign the data.
+        data is expected to be a hex string representation of a 32byte hash.
+        Basically the same thing that json-rpc 'eth_sign()' takes.
+        Returns a packed signature hex string.
         '''
         priv_key = None
         errmsg = None
@@ -203,17 +204,36 @@ class EthLocalKeystore(EthereumSigner):
                 errmsg = 'Account locked: {0}'.format(v_addr)
                 errcode = EthSigDelegate.ADDR_LOCKED 
                   
-        signature = None
+        sig_str = None
         if priv_key:
             v, r, s = ecdsa_sign_raw(data, priv_key)                  
-            signature = utils.vrs_to_sig(v, r, s)
+            sig_str = utils.vrs_to_sig(v, r, s)
         
-        return (signature, errcode, errmsg)
+        return (sig_str, errcode, errmsg)
+ 
+    def _do_recover_address(self, msg, sig):
+        '''
+        Given ahex-encoded hash string
+        and a signature string (as returned from sign_data() or eth_sign())
+        Return a string containing the address that signed it.
+        '''
+        errmsg = None
+        errcode = EthSigDelegate.SUCCESS        
+        addr_str = None
+        try:
+            v,r,s = utils.sig_to_vrs(sig)
+            Q = ecdsa_recover_raw(msg, (v,r,s))
+            pub = encode_pubkey(Q, 'bin')
+            addr = sha3(pub[1:])[-20:]
+            addr_str = '0x{0}'.format(addr.encode('hex'))
+        except Exception as ex:
+            errcode = EthSigDelegate.OTHER_ERROR
+            errmsg = str(ex)
+        return (addr_str, errcode, errmsg)
  
     # EthereumSigner API  
     def sign_transaction(self, acct_addr, unsigned_tx_str, delegate=None, context_data=None): 
         '''
-        TODO: make this go away (transaction logic should be in an EthTransaction class)
         This particular implementation allows for synchronous signing by not providing a delegate
         '''
         (signed_tx, errcode, errmsg) = self._do_sign_transaction(acct_addr, unsigned_tx_str)
@@ -224,7 +244,7 @@ class EthLocalKeystore(EthereumSigner):
         
     def sign_data(self, acct_addr, data, delegate=None, context_data=None): 
         '''
-        This particular implementation allows for synchronous signing by not providing a delegate
+        As above: allows for synchronous signing by not providing a delegate
         '''
         (sig, errcode, errmsg) = self._do_sign_data(acct_addr, data)
         if delegate:
@@ -232,5 +252,18 @@ class EthLocalKeystore(EthereumSigner):
         else:
             return (sig, errcode, errmsg) 
  
-
+ 
+    def recover_address(self, hash_str, signature, delegate=None, context_data=None): 
+        '''
+        Given a hash and a signature for it, returns the acct address that 
+        did the signing.
+        Signature is a single packed hex string
+        Hash is a hex string
+        Returned address is a hex string
+        '''
+        (addr, errcode, errmsg) = self._do_recover_address(hash_str, signature)
+        if delegate:
+            delegate.on_address_recovered( context_data, addr)
+        else:
+            return (addr, errcode, errmsg) 
 
