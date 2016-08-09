@@ -5,16 +5,17 @@ import codecs
 
 def sig_to_vrs(sig):
     '''
-    Sig is a 134 character hex-string 
-    ECDSA signature optionally starting with '0x'
+    Sig is a 132 character hex-string 
+    ECDSA signature (number is 1 byte followed by 2 32-byte values) 
+    optionally starting with '0x'
     We want integers
     '''
-    if sig[0:2] != '0x':   
-        sig = '0x{0}'.format(sig)
+    if sig[0:2] == '0x':   
+        sig = sig[2:]
 
-    r = hex_str_to_int(sig[0:66])
-    s = hex_str_to_int('0x'+sig[66:130])
-    v = hex_str_to_int('0x'+sig[130:132])
+    r = hex_str_to_int(sig[66:130])
+    s = hex_str_to_int(sig[2:66])
+    v = hex_str_to_int(sig[0:2])
     if v < 27:  # this is either 27 or 28
         v += 27  # or 0 => 27 or 1 => 28
     return v,r,s    
@@ -30,7 +31,7 @@ def vrs_to_sig(v,r,s):
     # True?
     if v < 27:  # this is either 27 or 28
         v += 27  # or 0 => 27 or 1 => 28    
-    sig = "0x{v:02x}{s:064x}{r:066x}".format(v=v,r=r,s=s)
+    sig = "0x{v:02x}{s:064x}{r:064x}".format(v=v,r=r,s=s)
     return sig
         
     
