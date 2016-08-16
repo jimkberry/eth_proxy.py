@@ -176,12 +176,11 @@ class EthLocalKeystore(EthereumSigner):
         
         return (signed_tx, errcode, errmsg)
  
-    def _do_sign_data(self, acct_addr, data):
+    def _do_sign_data(self, acct_addr, data_str):
         '''
         Make sure account is in the keystore and unlocked, then sign the data.
-        data is expected to be a hex string representation of a 32byte hash.
-        Basically the same thing that json-rpc 'eth_sign()' takes.
-        Returns a packed signature hex string.
+        Data str gets hashed, and that hash is what gets signed.
+        Returns the hash and sig as hex strings.
         '''
         priv_key = None
         errmsg = None
@@ -206,14 +205,15 @@ class EthLocalKeystore(EthereumSigner):
                   
         sig_str = None
         if priv_key:
-            v, r, s = ecdsa_sign_raw(data, priv_key)                  
+            data_hash = sha3(data_str)
+            v, r, s = ecdsa_sign_raw(data_hash, priv_key)                  
             sig_str = utils.vrs_to_sig(v, r, s)
         
-        return (sig_str, errcode, errmsg)
+        return (data_hash, sig_str, errcode, errmsg)
  
-    def _do_recover_address(self, msg, sig):
+    def _do_recover_address(self, data_hash, sig):
         '''
-        Given ahex-encoded hash string
+        Given hex-encoded hash string
         and a signature string (as returned from sign_data() or eth_sign())
         Return a string containing the address that signed it.
         '''
@@ -222,7 +222,7 @@ class EthLocalKeystore(EthereumSigner):
         addr_str = None
         try:
             v,r,s = utils.sig_to_vrs(sig)
-            Q = ecdsa_recover_raw(msg, (v,r,s))
+            Q = ecdsa_recover_raw(data_hash, (v,r,s))
             pub = encode_pubkey(Q, 'bin')
             addr = sha3(pub[1:])[-20:]
             addr_str = '0x{0}'.format(addr.encode('hex'))
@@ -242,15 +242,15 @@ class EthLocalKeystore(EthereumSigner):
         else:
             return (signed_tx, errcode, errmsg) 
         
-    def sign_data(self, acct_addr, data, delegate=None, context_data=None): 
+    def sign_data(self, acct_addr, data_str, delegate=None, context_data=None): 
         '''
         As above: allows for synchronous signing by not providing a delegate
         '''
-        (sig, errcode, errmsg) = self._do_sign_data(acct_addr, data)
+        (data_hash, sig, errcode, errmsg) = self._do_sign_data(acct_addr, data_str)
         if delegate:
-            delegate.on_data_signed( context_data, sig, errcode, errmsg)
+            delegate.on_data_signed( context_data, data_hash, sig, errcode, errmsg)
         else:
-            return (sig, errcode, errmsg) 
+            return (data_hash, sig, errcode, errmsg) 
  
  
     def recover_address(self, hash_str, signature, delegate=None, context_data=None): 

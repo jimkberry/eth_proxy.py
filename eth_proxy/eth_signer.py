@@ -6,31 +6,28 @@ class EthereumSigner(object):
      it is capable of signing an Ethereum transaction or data
     '''
 
-    def sign_transaction(self, acct_addr, unsigned_tx, delegate, context_data):
-        '''
-        Asynchronous - returns nothing and results come via the delegate
-        
+    def sign_transaction(self, acct_addr, unsigned_tx, delegate=None, context_data=None):
+        '''        
         Params:
             acct_addr - etherem account hex address
             unsigned_tx -  RLP-encoded raw unsigned tx (hex string)
             delegate - A class implementing the EthSigDelegate mixin.
             context_data - data passed back to the delegate unchanged
                 
-        Returns: Nothing 
+        Returns: (signed_tx_str, errcode, errmsg) 
         '''
         raise NotImplementedError()
     
-    def sign_data(self, acct_addr, data, delegate, context_data):
+    def sign_data(self, acct_addr, data, delegate=None, context_data=None):
         '''
-        Asynchronous - returns nothing and results come via the delegate
         
         Params:
             acct_addr - etherem account hex address
-            unsigned_tx -  data to sign
+            data -  arbitrary data string. Will be hashed and signed.
             delegate - A class implementing the EthSigDelegate mixin.
             context_data - data passed back to the delegate unchanged
                 
-        Returns: Nothing 
+        Returns: (data_hash, signature, errcode, errmsg) 
         '''
         raise NotImplementedError()
 
@@ -41,6 +38,8 @@ class EthereumSigner(object):
         Signature is a single packed hex string
         Hash is a hex string
         Recovered address is a hex string
+        
+        Returns: (acct_addr, errcode, errmsg)
         '''
         raise NotImplementedError()
         
@@ -68,10 +67,11 @@ class EthSigDelegate(object):
         '''
         raise NotImplementedError()
     
-    def on_data_signed(self, context_data, signature, result_code, err_msg=None):        
+    def on_data_signed(self, context_data, data_hash, signature, result_code, err_msg=None):        
         '''
         Params:
             contxt_data - data passed in when sign_transaction() was called
+            hash - hash that got signed (passed-in from input data) 
             signature - 134 byte signature string
             result_code - constant defined above
             err_msg - optional information
