@@ -204,12 +204,16 @@ class EthLocalKeystore(EthereumSigner):
                 errcode = EthSigDelegate.ADDR_LOCKED 
                   
         sig_str = None
+        hash_str = None
         if priv_key:
             data_hash = sha3(data_str)
             v, r, s = ecdsa_sign_raw(data_hash, priv_key)                  
             sig_str = utils.vrs_to_sig(v, r, s)
+            # hash comes out as a "bytes' object
+            hash_str = '0x{0}'.format(data_hash.encode('hex')) 
         
-        return (data_hash, sig_str, errcode, errmsg)
+        return (hash_str, sig_str, errcode, errmsg)
+ 
  
     def _do_recover_address(self, data_hash, sig):
         '''
@@ -222,6 +226,9 @@ class EthLocalKeystore(EthereumSigner):
         addr_str = None
         try:
             v,r,s = utils.sig_to_vrs(sig)
+            if data_hash[:2].upper() == '0X':
+                # It's a hex-encoded string (usually the case)
+                data_hash = data_hash[2:].decode('hex') 
             Q = ecdsa_recover_raw(data_hash, (v,r,s))
             pub = encode_pubkey(Q, 'bin')
             addr = sha3(pub[1:])[-20:]
