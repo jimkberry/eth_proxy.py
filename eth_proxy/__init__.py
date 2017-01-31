@@ -1,5 +1,4 @@
 
-import pyeth_client
 from eth_proxy_http import EthProxyHttp
 from eth_proxy_https import EthProxyHttps
 from eth_proxy_ipc import EthProxyIpc

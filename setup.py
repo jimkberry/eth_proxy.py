@@ -19,7 +19,7 @@ setup(
     author='jimkberry',
     author_email='jimkberry@gmail.com',
     license='',
-    packages=['eth_proxy'],
+    packages=find_packages(),
     setup_requires =['pytest-runner',],
     tests_require=['pytest',],      
     install_requires=[
