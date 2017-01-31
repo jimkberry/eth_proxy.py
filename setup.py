@@ -1,6 +1,7 @@
 from setuptools import setup
 import platform
 
+# signing is not needed if you use and external signer
 signing_reqs = ['pbkdf2','bitcoin']
 
 # scrypte is preferred, but usually a problem for windows:
@@ -14,7 +15,7 @@ setup(
     name='eth_proxy',
     version='0.1',
     description='Ethereum JSON-RPC Proxy',
-    url='http://github.com/jimkberry/eth_proxy',
+    url='https://github.com/jimkberry/eth_proxy.py',
     author='jimkberry',
     author_email='jimkberry@gmail.com',
     license='',
