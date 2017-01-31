@@ -6,7 +6,7 @@ from tx_delegate import TransactionDelegate
 from eth_contract import EthContract
 from solc_caller import SolcCaller
 from node_signer import EthNodeSigner
-import .pyeth_client
+import pyeth_client
 
 import urlparse
 
