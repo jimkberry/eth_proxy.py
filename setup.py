@@ -1,4 +1,5 @@
 from setuptools import setup
+import platform
 
 signing_reqs = ['pbkdf2','bitcoin']
 
