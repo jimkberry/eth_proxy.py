@@ -3,9 +3,10 @@ import platform
 
 signing_reqs = ['pbkdf2','bitcoin']
 
-# preferred, but usually a problem for windows:
+# scrypte is preferred, but usually a problem for windows:
+# also c_secp256k1 is often a problem on any platform, or it ould be there too
 if platform.system() != 'Windows':
-    signing_reqs.append(['scrypt','c_secp256k1'])
+    signing_reqs.append(['scrypt'])
 
 
 
