@@ -70,16 +70,17 @@ def validate_address(addr_str):
       addr_str if valid
       None  if invalid
     '''
-    addr_str = addr_str.strip() # don't penalize for whitespace
-    if addr_str[0:2] != '0x':
-        addr_str = "0x{0}".format(addr_str)  
-    # is the passed-in account even remotely valid?
-    try:
-        if (len(addr_str) != 42) or (hex_str_to_int(addr_str) == 0):
+    if addr_str is not None:
+        addr_str = addr_str.strip() # don't penalize for whitespace
+        if addr_str[0:2] != '0x':
+            addr_str = "0x{0}".format(addr_str)  
+        # is the passed-in account even remotely valid?
+        try:
+            if (len(addr_str) != 42) or (hex_str_to_int(addr_str) == 0):
+                addr_str = None
+        except ValueError as vx:
+            # Hmmm. Seems a waste not to have at least logging in here.
             addr_str = None
-    except ValueError as vx:
-        # Hmmm. Seems a waste not to have at least logging in here.
-        addr_str = None
             
     return addr_str
 

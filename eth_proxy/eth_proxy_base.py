@@ -39,14 +39,14 @@ class EthProxyBase(EthSigDelegate):
     
     
     def __init__(self):
-        self.acct_addr = None # ethereum account
-        self.acct_nonce = None # we manage this. Resets when acct is changed.
         self.eth_signer = None # instance of an EthereumSigner
-        self.log = logging.getLogger(__name__)        
+        self.log = logging.getLogger(__name__)
+        self.log.setLevel(logging.INFO)        
         self.default_timeout_secs = 120        
         self._pending_tx = []   # {hash: tx_hash, timeout: timeout, 
                                 #  delegate_info: (delegate, del_data) or list of em }     
         self._txs_for_sig = {}  # txs waiting for signature
+        self._last_polled_block = -1 # Latest block we've polled
     
     def _call(self, method, params=None, _id=0):
         '''
@@ -54,21 +54,13 @@ class EthProxyBase(EthSigDelegate):
         '''
         raise NotImplementedError()
     
-    def _nonce(self):
+    def _nonce(self, acct_addr):
         '''
         If nonce isn't set get it from the node
         '''
-        if self.acct_nonce is None:
-            self.acct_nonce = self.eth_getTransactionCount(self.acct_addr, 'latest')
-        self.log.info("Nonce: {0} ".format(self.acct_nonce))
-        return self.acct_nonce
-    
-    def _increment_nonce(self):
-        '''
-        Call this when a tx has been successfully submitted.
-        '''
-        if self.acct_nonce is not None:
-            self.acct_nonce += 1                                      
+        nonce = self.eth_getTransactionCount(acct_addr, 'pending')
+        self.log.info("Nonce: {0} ".format(nonce))
+        return nonce                                  
  
     def _makeGasPrice(self):
         defPrice = self.eth_gasPrice()
@@ -192,6 +184,8 @@ class EthProxyBase(EthSigDelegate):
         '''
         prefix = abi.big_endian_to_int(utils.sha3(signature)[:4])
 
+        #self.log.info("Sig: {0} Params: {1}".format(signature, param_values))
+
         if signature.find('(') == -1:
             raise RuntimeError('Invalid function signature. Missing "(" and/or ")"...')
 
@@ -201,7 +195,6 @@ class EthProxyBase(EthSigDelegate):
         types = signature[signature.find('(') + 1: signature.find(')')].split(',')
         encoded_params = abi.encode_abi(types, param_values)
  
-        self.log.info("Sig: {0} Params: {1}".format(signature, param_values))
         
         return abi.zpad(abi.encode_int(prefix), 4) + encoded_params
 
@@ -219,6 +212,7 @@ class EthProxyBase(EthSigDelegate):
         This is the callback from a TransactionSigner.
         "context_data" for this module is the "sig_id"
         '''
+        self.log.info("Result code: {0} Err Msg: {1}".format(result_code, err_msg))  
         sig_id = context_data
         self.log.info("Looking for sig_id: {0}".format(sig_id))        
         self.log.info("Available job sig_ids: {0}".format(self._txs_for_sig.keys()))
@@ -232,6 +226,11 @@ class EthProxyBase(EthSigDelegate):
                 if not tx_hash:
                     tx_result = TransactionDelegate.RESULT_FAILURE
                     err_msg = "sendRawTransaction() failed"
+                else:
+                    self.log.info("Submitted TX: {0}".format(tx_hash)) 
+            else:
+                tx_result = TransactionDelegate.RESULT_FAILURE
+                err_msg = "TX signing failed. Code: {0}".format(result_code)
                 
             delInfo = job.get('delegate_info') # <- this is (these are) *Transaction*Delegates
             if delInfo:
@@ -246,7 +245,7 @@ class EthProxyBase(EthSigDelegate):
                                 
             if tx_hash:
                 # increment local nonce and start watching for tx in the blockchain
-                self._increment_nonce()
+                #self._increment_nonce()
                 self._watch_for_tx(tx_hash, job['timeout'], job['gas_price'], delInfo)                 
       
             del self._txs_for_sig[sig_id]
@@ -283,18 +282,6 @@ class EthProxyBase(EthSigDelegate):
         '''
         self.eth_signer = eth_signer
     
-    def attach_account(self, acct_addr):
-        self.acct_addr = acct_addr
-        self.acct_nonce = None
-        
-    def account(self):
-        return self.acct_addr
-        
-    def detach_account(self):
-        self.acct_addr = None
-        self.acct_nonce = None
-
-
 #
 # EthProxy mid-level async calls
 #
@@ -307,25 +294,32 @@ class EthProxyBase(EthSigDelegate):
                                
         remove_if_found allows for non-destructive polling (multiple readers.) If you have multiple readers
         though, the last one per frame needs to have this be True. Hopefully that's self-evident. 
+
+        '''
+        msg = None
         
-        TODO: check for new block before doing anything else - just to save time/effort
-        
-        '''        
-        msg = self._poll_for_tx(remove_if_found)               
+        cur_block = self.eth_blockNumber()
+        if cur_block > self._last_polled_block:
+            self.log.info("New block: {0}".format(cur_block))
+            self._last_polled_block = cur_block
+            msg = self._poll_for_tx(remove_if_found)
+                       
         return msg
                    
+    def last_polled_block(self):
+        return self._last_polled_block
 
-    def _do_submit_transaction_async(self, utx, gas_price, timeout_secs, delegate_info):
+    def _do_submit_transaction_async(self, from_address, utx, gas_price, timeout_secs, delegate_info):
         '''
         Calls the signer which calls us back with the result. It's the 
         called-back signature delegate method which actually submits the tx 
         '''
         sig_req_id = utx[:16]
         self._watch_for_sig(sig_req_id, delegate_info, timeout_secs, gas_price)
-        self.eth_signer.sign_transaction(self.acct_addr, utx, self, sig_req_id)      
+        self.eth_signer.sign_transaction(from_address, utx, self, sig_req_id)      
  
 
-    def submit_transaction(self, to_address=None, data=None,gas=None, gas_price=None, value=0, 
+    def submit_transaction(self, from_address=None, to_address=None, data=None,gas=None, gas_price=None, value=0, 
                               delegate_info=None, timeout_secs=None):
         '''
 
@@ -334,17 +328,17 @@ class EthProxyBase(EthSigDelegate):
         gas = gas or self.DEFAULT_GAS_FOR_TRANSACTIONS  
         gas_price = gas_price or self._makeGasPrice()
         
-        utx = self.prepare_transaction(to_address=to_address, 
-                                           from_address=self.acct_addr,
+        utx = self.prepare_transaction(    to_address=to_address, 
+                                           from_address=from_address,
                                            data=data,
-                                           nonce=self._nonce(),
+                                           nonce=self._nonce(from_address),
                                            gas=gas,
                                            gas_price=gas_price,
                                            value=value)
-        return self._do_submit_transaction_async(utx, gas_price, timeout_secs, delegate_info)        
+        return self._do_submit_transaction_async(from_address, utx, gas_price, timeout_secs, delegate_info)        
 
 
-    def install_compiled_contract(self, byte_data=None, ctor_sig=None, ctor_params=None, 
+    def install_compiled_contract(self, acct_address=None, byte_data=None, ctor_sig=None, ctor_params=None, 
                                   gas=None, gas_price=None,  value=0, 
                                   delegate_info=None, timeout_secs=None):
         '''
@@ -357,17 +351,17 @@ class EthProxyBase(EthSigDelegate):
         utx = self.prepare_contract_creation_tx(byte_data=byte_data,
                                              ctor_sig=ctor_sig,
                                              ctor_params=ctor_params,
-                                             from_address=self.acct_addr,
-                                             nonce=self._nonce(),
+                                             from_address=acct_address,
+                                             nonce=self._nonce(acct_address),
                                              gas=gas,                                           
                                              gas_price=gas_price,
                                              value=value )            
         
-        return self._do_submit_transaction_async(utx, gas_price, timeout_secs, delegate_info)
+        return self._do_submit_transaction_async(acct_address, utx, gas_price, timeout_secs, delegate_info)
 
-    def contract_function_tx(self, contract_address, function_signature, function_parameters=None,
-                                   gas=None, gas_price=None, value=0,
-                                    delegate_info=None, timeout_secs=None):
+    def contract_function_tx(self, from_address=None, contract_address=None, function_signature=None,
+                             function_parameters=None, gas=None, gas_price=None, value=0,
+                              delegate_info=None, timeout_secs=None):
         """
         Submit a transaction to a contract function on the pending block 
         Function sig is the ABI function signature, in the form 'funcname(type1,type2)' with no spaces
@@ -379,12 +373,12 @@ class EthProxyBase(EthSigDelegate):
         utx = self.prepare_contract_function_tx(contract_address=contract_address,
                                                 function_signature=function_signature, 
                                                 function_parameters=function_parameters, 
-                                                from_address=self.acct_addr, 
-                                                nonce=self._nonce(), 
+                                                from_address=from_address, 
+                                                nonce=self._nonce(from_address), 
                                                 gas=gas, 
                                                 gas_price=gas_price, 
                                                 value=value)    
-        return self._do_submit_transaction_async(utx, gas_price, timeout_secs, delegate_info)
+        return self._do_submit_transaction_async(from_address,utx, gas_price, timeout_secs, delegate_info)
                
     
 #
@@ -427,45 +421,49 @@ class EthProxyBase(EthSigDelegate):
             tx = self.poll_until_tx(remove_if_found=True)
         return tx          
   
-    def submit_transaction_sync(self,to_address=None, data=None,gas=None, gas_price=None, 
+    def submit_transaction_sync(self,from_address=None, to_address=None, data=None,gas=None, gas_price=None, 
                                   value=0,timeout_secs=None):
         '''
         Submit async with this class as the delegate, 
         then wait for the tx in the chain
         Returns a dict full of tx_info
         '''        
-        self.submit_transaction(to_address=to_address, 
-                                          data=data,
-                                          gas=gas,
-                                          gas_price=gas_price,
-                                          value=value,
-                                          timeout_secs=timeout_secs)
+        self.submit_transaction(    from_address=from_address,
+                                    to_address=to_address, 
+                                    data=data,
+                                    gas=gas,
+                                    gas_price=gas_price,
+                                    value=value,
+                                    timeout_secs=timeout_secs)
         
         return self._do_wait_for_tx()
   
-    def install_compiled_contract_sync(self, byte_data=None, ctor_sig=None, ctor_params=None, 
+    def install_compiled_contract_sync(self, acct_address=None, byte_data=None, ctor_sig=None, ctor_params=None, 
                                        gas=None, gas_price=None,  value=0, timeout_secs=None):
         
-        self.install_compiled_contract(  byte_data=byte_data, 
-                                                   ctor_sig=ctor_sig,
-                                                   ctor_params=ctor_params, 
-                                                   gas=gas,
-                                                   gas_price=gas_price,
-                                                   value=value, 
-                                                   timeout_secs=timeout_secs)
+        self.install_compiled_contract(acct_address=acct_address, 
+                                       byte_data=byte_data, 
+                                       ctor_sig=ctor_sig,
+                                       ctor_params=ctor_params, 
+                                       gas=gas,
+                                       gas_price=gas_price,
+                                       value=value, 
+                                       timeout_secs=timeout_secs)
         return self._do_wait_for_tx()
   
-    def contract_function_tx_sync(self, contract_address, function_signature, function_parameters=None,
-                                   gas=None, gas_price=None, value=0, delegate_info=None, timeout_secs=None):
+    def contract_function_tx_sync(self, from_address=None, contract_address=None, function_signature=None,
+                                  function_parameters=None,
+                                  gas=None, gas_price=None, value=0, delegate_info=None, timeout_secs=None):
         '''
         '''
-        self.contract_function_tx( contract_address=contract_address,
-                                             function_signature=function_signature,
-                                             function_parameters=function_parameters,
-                                             gas=gas, 
-                                             gas_price=gas_price,
-                                             value=value,
-                                             timeout_secs=timeout_secs)
+        self.contract_function_tx(   from_address=from_address,
+                                     contract_address=contract_address,
+                                     function_signature=function_signature,
+                                     function_parameters=function_parameters,
+                                     gas=gas, 
+                                     gas_price=gas_price,
+                                     value=value,
+                                     timeout_secs=timeout_secs)
         return self._do_wait_for_tx()
 
 #
@@ -476,8 +474,8 @@ class EthProxyBase(EthSigDelegate):
 # 
 #
 
-    def prepare_transaction(self,to_address=None, from_address=None,
-                                   data=None, nonce=None, gas=None, gas_price=None, value=0):
+    def prepare_transaction(self, to_address=None, from_address=None,
+                            data=None, nonce=None, gas=None, gas_price=None, value=0):
         '''
         Builds a simple RLP-encoded transaction (suitable for signing) from parameters.
         What makes it "simple" is that the "data" parameter is just that: a single paraemter.
@@ -552,7 +550,9 @@ class EthProxyBase(EthSigDelegate):
 
  
  
-    def contract_function_call(self, contract_address, function_signature, function_parameters=None, result_types=None, from_address=None, default_block="latest"):
+    def contract_function_call(self, contract_address=None, function_signature=None,
+                               function_parameters=None, 
+                               result_types=None, from_address=None, value=0, default_block="latest"):
         """
         Call (using eth_call) a contract function on the latest block (does NOT issue a transaction)
         Function sig is the ABI function signature, in the form 'funcname(type1,type2)' with no spaces   
@@ -561,21 +561,35 @@ class EthProxyBase(EthSigDelegate):
         params = [
             {
                 'to': contract_address,
-                'data': '0x{0}'.format(data.encode('hex'))
+                'data': '0x{0}'.format(data.encode('hex')),
+                'value': "0x{0:x}".format(value)
             },
             default_block
         ]
         
         # It's technically possible to call without a from address, but msg.sender
-        # will not be set properly. Assume that if we have an attached addr it's
-        # the one to use 
-        if self.acct_addr and not from_address:
-            from_address = self.acct_addr
+        # will not be set properly. 
 
         if from_address:
             params[0]['from'] = from_address
         response = self._call('eth_call', params)
-        return abi.decode_abi(result_types, response[2:].decode('hex'))
+        
+        # TODO: I *think* that any time "response" is the string "0x" that 
+        # means the call crashed/threw. In any case, I don;ttthink you can call
+        # decode_abi with a non-empty types array and an empty string.
+        # So should probably be catching it and doing something more sensible
+        
+        # response will always begine with a "0x". If there is no result (almost
+        # certainly a throw or crash, since this is a call) it is JUST the string
+        # '0x'
+        retVal = [None]       
+        if len(response) > 2:
+
+            retVal = abi.decode_abi(result_types, response[2:].decode('hex'))
+        else:
+            self.log.info("Resp: {0}".format(response))
+                
+        return retVal
  
 
     def get_transaction_logs(self, tx_hash):

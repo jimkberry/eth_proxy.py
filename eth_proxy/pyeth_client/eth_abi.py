@@ -223,8 +223,8 @@ def enc(typ, arg):
     # Encode dynamic-sized lists via the head/tail mechanism described in
     # https://github.com/ethereum/wiki/wiki/Proposal-for-new-ABI-value-encoding
     elif sz is None:
-        assert isinstance(arg, list), \
-            "Expecting a list argument"
+        assert isinstance(arg, (tuple,list)), \
+            "Expecting a list or tuple argument"
         subtyp = base, sub, arrlist[:-1]
         subsize = get_size(subtyp)
         myhead, mytail = b'', b''

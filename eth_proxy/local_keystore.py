@@ -176,11 +176,10 @@ class EthLocalKeystore(EthereumSigner):
         
         return (signed_tx, errcode, errmsg)
  
-    def _do_sign_data(self, acct_addr, data_str):
+    def _do_sign_data(self, acct_addr, hash_str):
         '''
-        Make sure account is in the keystore and unlocked, then sign the data.
-        Data str gets hashed, and that hash is what gets signed.
-        Returns the hash and sig as hex strings.
+        Make sure account is in the keystore and unlocked, then sign the hash.
+        Returns the sig as a hex string.
         '''
         priv_key = None
         errmsg = None
@@ -204,15 +203,12 @@ class EthLocalKeystore(EthereumSigner):
                 errcode = EthSigDelegate.ADDR_LOCKED 
                   
         sig_str = None
-        hash_str = None
         if priv_key:
-            data_hash = sha3(data_str)
+            # It's a hex-encoded string starting with '0x'
+            data_hash = hash_str[2:].decode('hex')            
             v, r, s = ecdsa_sign_raw(data_hash, priv_key)                  
-            sig_str = utils.vrs_to_sig(v, r, s)
-            # hash comes out as a "bytes' object
-            hash_str = '0x{0}'.format(data_hash.encode('hex')) 
-        
-        return (hash_str, sig_str, errcode, errmsg)
+            sig_str = utils.vrs_to_sig(v, r, s)       
+        return ( sig_str, errcode, errmsg)
  
  
     def _do_recover_address(self, data_hash, sig):
@@ -249,15 +245,15 @@ class EthLocalKeystore(EthereumSigner):
         else:
             return (signed_tx, errcode, errmsg) 
         
-    def sign_data(self, acct_addr, data_str, delegate=None, context_data=None): 
+    def sign_data(self, acct_addr, hash_str, delegate=None, context_data=None): 
         '''
         As above: allows for synchronous signing by not providing a delegate
         '''
-        (data_hash, sig, errcode, errmsg) = self._do_sign_data(acct_addr, data_str)
+        ( sig, errcode, errmsg) = self._do_sign_data(acct_addr, hash_str)
         if delegate:
-            delegate.on_data_signed( context_data, data_hash, sig, errcode, errmsg)
+            delegate.on_data_signed( context_data, sig, errcode, errmsg)
         else:
-            return (data_hash, sig, errcode, errmsg) 
+            return (sig, errcode, errmsg) 
  
  
     def recover_address(self, hash_str, signature, delegate=None, context_data=None): 
