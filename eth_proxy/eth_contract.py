@@ -20,8 +20,8 @@ except ImportError:
             log.setLevel(logging.INFO)
             return log     
 
-DEFAULT_META_GAS = 100001
-DEFAULT_META_CREATION_GAS = 500001
+DEFAULT_META_GAS = 200001
+DEFAULT_META_CREATION_GAS = 800001
 
 class EthContract(TransactionDelegate):
     '''
@@ -29,19 +29,24 @@ class EthContract(TransactionDelegate):
     that makes up an ethereum contract.
     
     IMPORTANT: in the function signatures there can be no spaces in the argument list!
+    
+    Note that a contract sintance contains an account address for the account creating/talking to it
+    This is a convenience and might turn out to be a Bad Thing.
     '''
 
     CREATION_CONTEXT = 'contract_creation'  # delegate context for creation tx
 
 
-    def __init__(self, contract_desc_path, eth_proxy):
+    def __init__(self, contract_desc_path, eth_proxy, acct_addr):
         '''
         The contract descriptor is a json file which acts as an
         adjunct to a contract source file
         '''
         self.log = config.setup_class_logger(self)         
         self._eth = eth_proxy
+        self.acct_addr = acct_addr
         self._folder = None
+        self._source_path = None
         self._methods = None
         self._hex_bytedata = None
         self._creation_tx = None # tx hash for creation transaction - might want it
@@ -64,9 +69,7 @@ class EthContract(TransactionDelegate):
                 self._data = json.load(f)
         
         if self._data.get('code_filename'):
-            self._codePath = os.path.join(self._folder, self._data['code_filename'])
-            with open(self._codePath) as f:
-                self._source_code = f.read()
+            self._source_path = os.path.join(self._folder, self._data['code_filename'])
             
         self._methods = self._data.get('methods')
         self._hex_bytedata = self._data.get('hex_bytedata')
@@ -89,7 +92,7 @@ class EthContract(TransactionDelegate):
         and can be used immediately
         '''
             
-        src_data = SolcCaller.generate_metadata(self._source_code)
+        src_data = SolcCaller.generate_metadata(self._source_path)
         if src_data == None:
             self.log.warning("Unable to generate metadata. Solc failed/not found.")
         else:
@@ -110,34 +113,37 @@ class EthContract(TransactionDelegate):
                 elif meth['type'] == 'constructor':
                     key = 'ctor'
                     signame = contractName
-                    gas = DEFAULT_META_CREATION_GAS 
+                    gas = DEFAULT_META_CREATION_GAS
+                elif meth['type'] == 'fallback':
+                    key = 'fallback'
+                    signame = None
                     
-                old_def = {}
-                if self._methods:
-                    old_def = self._methods.get(key) or {}
+                if signame:
+                    old_def = {}
+                    if self._methods:
+                        old_def = self._methods.get(key) or {}
+                        
+                    mdata = {}
+                    argTypes = [inp['type'] for inp in meth['inputs']]
+                    mdata['sig'] = '{0}({1})'.format(signame, ','.join(argTypes))
+                    mdata['returns'] = [o['type'] for o in meth['outputs']] if meth.get('outputs') else []
+                    mdata['gas'] = old_def.get('gas') or gas 
                     
-                mdata = {}
-                argTypes = [inp['type'] for inp in meth['inputs']]
-                mdata['sig'] = '{0}({1})'.format(signame, ','.join(argTypes))
-                mdata['returns'] = [o['type'] for o in meth['outputs']] if meth.get('outputs') else []
-                mdata['gas'] = old_def.get('gas') or gas 
-                
-                new_data['methods'][key] = mdata
+                    new_data['methods'][key] = mdata
             
             # print the data to the console so it can be save to file
             # TODO: Would it even be a good idea to actually write the file?
             self.log.info(json.dumps(new_data, indent=4))
             self._load_metadata(None, new_data)
       
-    def new_source(self, source_code):
+    def new_source(self, source_path):
         '''
         Compile new source code and recreate all metadata (does not overlay over
         previous data)
         '''
-        self._source_code = source_code
-        self.generate_metadata()
-      
-#      
+        self._source_path = source_path
+        self._folder = os.path.dirname(source_path)        
+        self.generate_metadata() 
         
     def _methodSig(self, methodName):
         sig = None
@@ -205,15 +211,16 @@ class EthContract(TransactionDelegate):
         if self._hex_bytedata:
             byte_data = self._hex_bytedata.decode('hex')
         else:
-            byte_data = SolcCaller.compile_solidity( self._source_code) 
+            byte_data = SolcCaller.compile_solidity( self._source_path) 
 
         self._installed = False
         mData = self._methods.get('ctor')        
-        self._eth.install_compiled_contract( byte_data=byte_data,
-                                            ctor_sig=mData['sig'],
-                                            ctor_params=ctor_params,
-                                            gas=mData['gas'],
-                                            delegate_info=delegate_info)        
+        self._eth.install_compiled_contract( self.acct_addr,
+                                             byte_data=byte_data,
+                                             ctor_sig=mData['sig'],
+                                             ctor_params=ctor_params,
+                                             gas=mData['gas'],
+                                             delegate_info=delegate_info)        
     
     def install_sync(self, ctor_params=None, timeout_secs=None):
         '''        
@@ -225,13 +232,14 @@ class EthContract(TransactionDelegate):
         if self._hex_bytedata:
             byte_data = self._hex_bytedata.decode('hex')        
         else:
-            byte_data = SolcCaller.compile_solidity( self._source_code)         
+            byte_data = SolcCaller.compile_solidity( self._source_path)         
         
         mData = self._methods.get('ctor')
-        tx_data = self._eth.install_compiled_contract_sync( byte_data=byte_data, 
-                                            ctor_sig=mData['sig'], 
-                                            ctor_params=ctor_params,
-                                            gas=mData['gas'])           
+        tx_data = self._eth.install_compiled_contract_sync( self.acct_addr,
+                                                             byte_data=byte_data, 
+                                                             ctor_sig=mData['sig'], 
+                                                             ctor_params=ctor_params,
+                                                             gas=mData['gas'])           
         
         self._addr = tx_data.get('contract_addr')
         self._installed = tx_data.get('has_code')        
@@ -248,10 +256,12 @@ class EthContract(TransactionDelegate):
         As opposed to calling install() to (eventually) end up with an address, if you already know the address
         of a pre-existing contract, use this to set it
         '''
+        self._installed = False
         self._addr = address
         code = self._eth.eth_getCode(address)
         if code:
             self._installed = True
+        return self._installed
                 
     def transaction(self, methodName, params=None, delegate_info=None, timeout_secs=None, value=0):
         '''
@@ -266,7 +276,9 @@ class EthContract(TransactionDelegate):
             raise RuntimeError("Contract not installed.")              
       
         mData = self._methods.get(methodName)        
-        return self._eth.contract_function_tx(self._addr,mData['sig'], 
+        return self._eth.contract_function_tx(self.acct_addr,
+                                              self._addr,
+                                              mData['sig'], 
                                               function_parameters=params, 
                                               gas=mData['gas'],  
                                               timeout_secs=timeout_secs, 
@@ -286,7 +298,8 @@ class EthContract(TransactionDelegate):
             raise RuntimeError("Contract not installed.")       
       
         mData = self._methods.get(methodName)        
-        return self._eth.contract_function_tx_sync(self._addr,
+        return self._eth.contract_function_tx_sync(self.acct_addr,
+                                                   self._addr,
                                                    mData['sig'], 
                                                    function_parameters=params, 
                                                    gas=mData['gas'],  
@@ -294,7 +307,7 @@ class EthContract(TransactionDelegate):
                                                    value=value)
              
                 
-    def call(self, methodName, params=None):
+    def call(self, methodName, params=None, value=0):
         '''
         Issue an eth_call() to a (non-transaction) function on the local node 
         '''
@@ -305,10 +318,12 @@ class EthContract(TransactionDelegate):
         mData = self._methods.get(methodName)  
         if not mData:
             raise RuntimeError("No metadata for {0}".format(methodName))
-        return self._eth.contract_function_call( contract_address=self._addr,
-                                                 function_signature=mData['sig'],
+        return self._eth.contract_function_call( self._addr,
+                                                 mData['sig'],
                                                  function_parameters=params,
-                                                 result_types=mData['returns'])
+                                                 result_types=mData['returns'],
+                                                 from_address=self.acct_addr,
+                                                 value=value)
               
                         
     def get_log_data(self, tx_hash, log_idx=0):
