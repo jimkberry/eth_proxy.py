@@ -6,3 +6,4 @@
 # it's not in place but would be a simple 
 # addition) 
 #
+from . import eth_abi

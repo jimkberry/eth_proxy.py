@@ -5,12 +5,12 @@ import sys
 import time
 from types import ListType
 
-from tx_delegate import TransactionDelegate
-from eth_signer import EthSigDelegate
-from utils import hex_str_to_int
-import .pyeth_client.eth_abi as abi
-import .pyeth_client.eth_utils as utils
-from .pyeth_client.eth_txdata import TxData
+from .tx_delegate import TransactionDelegate
+from .eth_signer import EthSigDelegate
+from .utils import hex_str_to_int
+from .pyeth_client import eth_abi as abi
+import pyeth_client.eth_utils as utils
+from pyeth_client.eth_txdata import TxData
 
 class EthProxyBase(EthSigDelegate):
     '''
