@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 import platform
 
 # signing is not needed if you use and external signer
