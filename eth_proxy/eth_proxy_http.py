@@ -19,15 +19,17 @@ class EthProxyHttp(EthProxyBase):
         super(EthProxyHttp, self).__init__()        
         self.rpc_host = rpc_host
         self.rpc_port = rpc_port
-        self.timeout = 5.0
+        self.timeout = (6.09, 12.0) 
         self.session = self._setup_session()
         
         
     def _setup_session(self):
         s = requests.Session()
 
-        retries = Retry(total=5,
+        retries = Retry(total=10,
                         backoff_factor=0.1,
+                        connect=5,
+                        read=5,
                         status_forcelist=[ 500, 502, 503, 504 ])
 
         s.mount('http://', HTTPAdapter(max_retries=retries))        
