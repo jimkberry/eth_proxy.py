@@ -20,14 +20,14 @@ class EthProxyHttps(EthProxyBase):
         super(EthProxyHttps, self).__init__()        
         self.rpc_host = rpc_host
         self.rpc_port = rpc_port
-        self.timeout = (6.09, 12.0) 
+        self.timeout = 3.09 
         self.session = self._setup_session()
         
         
     def _setup_session(self):
         s = requests.Session()
 
-        retries = Retry(total=10,
+        retries = Retry(total=5,
                         backoff_factor=0.1,
                        connect=5,
                         read=5,                        
