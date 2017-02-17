@@ -40,7 +40,8 @@ class SolcCaller(object):
         into a numeric value and compare < and >
         '''
         version_info = subprocess.check_output(['solc', '--version'])
-        match = re.search("^Version: ([0-9a-z.-]+)/", version_info, re.MULTILINE)
+        match = re.search("^Version: ([0-9a-zA-Z.+-]+)", version_info, re.MULTILINE)
+        assert(match)
         vstr = match.group(1)    
 
         if vstr[:5] == '0.1.1':
