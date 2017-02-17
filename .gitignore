@@ -1,6 +1,7 @@
 *.log
 *.pyc
 *.egg
+.eggs/
 /dist/
 /*egg-info
 .project

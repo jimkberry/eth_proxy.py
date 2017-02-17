@@ -1,5 +1,8 @@
 
 import logging as log
+import tempfile
+import os
+import codecs
 
 from eth_proxy import eth_proxy_factory
 from eth_proxy.node_signer import EthNodeSigner
@@ -18,15 +21,15 @@ log.getLogger("urllib3").setLevel(log.WARNING)
 class FuncSetups(object):
     
     def __init__(self, host_ip=None):
-            self.eth_host = 'https://consensysnet.infura.io:8545'
+            self.eth_host = 'https://ropsten.infura.io:443'
             #eth_host = 'http://localhost:8545'
             #eth_host = 'ipc:/home/jim/cons-testnet-geth/data/geth.ipc'
 
 
     def create_proxy(self, host_ip=None):
-        if host_ip:
-            self.eth_host = host_ip
-        eth = eth_proxy_factory(self.eth_host)
+        if not host_ip:
+            host_ip = self.eth_host
+        eth = eth_proxy_factory(host_ip)
         return eth
 
 
@@ -61,10 +64,8 @@ class FuncSetups(object):
     def get_account(self, keystore, acct_idx):
         # returns acct address
         if keystore.__class__.__name__ == 'EthLocalKeystore':    
-            accounts = ['0x43f41cdca2f6785642928bcd2265fe9aff02911a',
-                        '0x510c1ffb6d4236808e7d54bb62741681ace6ea88']
             accounts = keystore.list_accounts()
-            print("eth_accounts(): {0}".format(accounts))            
+            # print("eth_accounts(): {0}".format(accounts))            
             pw = 'foo'
             acct = accounts[acct_idx]
             errmsg = keystore.unlock_account(acct, pw)
@@ -77,7 +78,17 @@ class FuncSetups(object):
             print("eth_accounts(): {0}".format(accounts))
             acct = accounts[acct_idx]
         return acct
-
-
-
+    
+    def write_temp_contract(self, file_name, src_code):
+        '''
+        Creates a file in the sys tempdir
+        containing the provided src. 
+        This is just here to allow testcode to contain
+        contract source code inline. 
+        '''
+        f_path = os.path.join(tempfile.gettempdir(), file_name)
+        with codecs.open(f_path, 'w', 'utf8') as f:
+            f.write(src_code)           
+        return f_path
+        
 

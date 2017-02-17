@@ -2,7 +2,9 @@ import logging as log
 import time
 
 from eth_proxy import TransactionDelegate, SolcCaller
-import func_setups as fs
+from func_setups import FuncSetups
+
+fs = FuncSetups()
 
 
 #
@@ -10,6 +12,7 @@ import func_setups as fs
 #
 contract_src = \
     '''
+    pragma solidity ^0.4.0;     
     contract TheTestContract 
     {
         // publics
@@ -33,6 +36,7 @@ contract_src = \
         
     '''
 
+contract_path = fs.write_temp_contract("test.sol", contract_src)
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 #
 # Test of async calls
@@ -91,12 +95,11 @@ class async_tester(TransactionDelegate):
     #
     
     def setup_ethProxy(self):
-        self.eth = eth = fs.create_proxy()
-        keystore = fs.create_keystore(self.eth)
+        self.eth = fs.create_proxy()
+        keystore = fs.create_keystore()
         # Set up proxy for this account
         self.eth.set_eth_signer(keystore)
         self.account = fs.get_account(keystore, 0)
-        self.eth.attach_account(self.account)    
 
         
     def run(self):
@@ -134,8 +137,9 @@ class async_tester(TransactionDelegate):
         
     def createContract(self):
         print("Creating Contract...")   
-        byte_code = SolcCaller.compile_solidity(contract_src)
-        self.eth.install_compiled_contract( byte_data=byte_code, 
+        byte_code = SolcCaller.compile_solidity(contract_path)
+        self.eth.install_compiled_contract( acct_address=self.account,
+                                            byte_data=byte_code, 
                                             ctor_sig='TheTestContract(int32)', 
                                             ctor_params=[222],
                                             gas=1500000,
@@ -148,7 +152,7 @@ class async_tester(TransactionDelegate):
         '''
         '''    
         print('Sending TX to contract...')
-        self.eth.contract_function_tx( self.contract_addr, 'SetTheInt(int32)', 
+        self.eth.contract_function_tx( self.account, self.contract_addr, 'SetTheInt(int32)', 
                                              function_parameters=[863], 
                                              gas=500000,
                                              delegate_info=(self,'test_tx'))

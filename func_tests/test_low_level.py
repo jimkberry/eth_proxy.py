@@ -3,8 +3,9 @@ import logging as log
 import time
 
 from eth_proxy.solc_caller import SolcCaller
-import func_setups as fs
+from func_setups import FuncSetups
 
+fs = FuncSetups()
 
 # the EthProxy
 eth = fs.create_proxy()
@@ -12,7 +13,7 @@ eth = fs.create_proxy()
 block = eth.eth_blockNumber()  # Trivial test (are we connected?)
 print("\neth_blockNumber(): {0}".format(block))
 
-keystore = fs.create_keystore(eth)
+keystore = fs.create_keystore()
 
 
 account = fs.get_account(keystore, 0)
@@ -81,6 +82,7 @@ print('Found it: {0}'.format(success))
 #
 contract_src = \
     '''
+    pragma solidity ^0.4.0;  
     contract TheTestContract 
     {
         // publics
@@ -104,8 +106,10 @@ contract_src = \
         
     '''
 
+contract_path = fs.write_temp_contract("test.sol", contract_src)
+
 print("\nContract Creation")   
-byte_code = SolcCaller.compile_solidity(contract_src)
+byte_code = SolcCaller.compile_solidity(contract_path)
 utx = eth.prepare_contract_creation_tx(byte_data=byte_code, 
                                     ctor_sig='TheTestContract(int32)', 
                                     ctor_params=[222],
