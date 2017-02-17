@@ -56,12 +56,14 @@ class EthProxyHttp(EthProxyBase):
         
         url = "http://{0}:{1}".format(self.rpc_host, self.rpc_port)
                          
-        response = self.session.post(url, timeout=self.timeout, headers=headers, data=data) 
+        response = self.session.post(url, timeout=self.timeout, headers=headers, data=data)    
 
-        if 'result' in response:
-            return response['result']
+        response.raise_for_status()
+  
+        json_resp = response.json()
+        #self.log.info("Eth Node response: {0}".format(json_resp))        
+        if 'result' in json_resp:
+            return json_resp['result']
         else:
-            raise RuntimeError('Error from RPC call. Returned payload: {0}'.format(response))
-
-
+            raise RuntimeError('Error from RPC call. Returned json payload: {0}'.format(json_resp))
 
