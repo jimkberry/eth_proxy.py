@@ -247,6 +247,9 @@ class EthContract(TransactionDelegate):
                 
     def address(self):
         return self._addr
+    
+    def account(self):
+        return self.acct_addr
                 
     def installed(self):
         return self._installed                
