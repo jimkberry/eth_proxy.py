@@ -13,7 +13,7 @@ if platform.system() != 'Windows':
 
 setup(
     name='eth_proxy',
-    version='0.3',
+    version='0.4',
     description='Ethereum JSON-RPC Proxy',
     url='https://github.com/jimkberry/eth_proxy.py',
     author='jimkberry',

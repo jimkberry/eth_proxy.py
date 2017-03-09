@@ -160,6 +160,9 @@ class EthContract(TransactionDelegate):
         Called after signing and submission - but before the tx shows 
         up in the chain
         '''
+        if err_code != TransactionDelegate.RESULT_SUCCESS:
+            self.log.error('TX submission failed: {0} Hash: {1}'.format(err_msg, tx_hash))
+        
         if delegate_data == self.CREATION_CONTEXT:
             if err_code == TransactionDelegate.RESULT_SUCCESS:
                 self._creation_tx = tx_hash

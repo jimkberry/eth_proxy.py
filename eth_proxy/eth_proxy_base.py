@@ -228,6 +228,18 @@ class EthProxyBase(EthSigDelegate):
                     err_msg = "sendRawTransaction() failed"
                 else:
                     self.log.info("Submitted TX: {0}".format(tx_hash)) 
+                    
+                    # Supeer-double-check
+                    txInfo = self.eth_getTransactionByHash(tx_hash)
+                    if not txInfo:
+                        # TODO: this should not be able to happen (other than a nonce-too-high) 
+                        # But I'm getting dropped TXs
+                        # Note that sinc ethe tx has a hash it ends up in the queue anyway,
+                        # Which makes this just an informational warning.
+                        tx_result = TransactionDelegate.RESULT_FAILURE
+                        err_msg = "TX not found after sendRawTransaction() success."
+                        self.log.warn("TX not found after sendRawTransaction() success.")    
+                    
             else:
                 tx_result = TransactionDelegate.RESULT_FAILURE
                 err_msg = "TX signing failed. Code: {0}".format(result_code)
@@ -244,8 +256,6 @@ class EthProxyBase(EthSigDelegate):
                 self.log.info('Handled signing request without transaction delegate')
                                 
             if tx_hash:
-                # increment local nonce and start watching for tx in the blockchain
-                #self._increment_nonce()
                 self._watch_for_tx(tx_hash, job['timeout'], job['gas_price'], delInfo)                 
       
             del self._txs_for_sig[sig_id]
@@ -621,6 +631,7 @@ class EthProxyBase(EthSigDelegate):
     def eth_sendRawTransaction(self, raw_tx_data):
         '''
         Sending account must be unlocked on ethereum node
+        Returns TX hash
         ''' 
         return self._call('eth_sendRawTransaction', [raw_tx_data])
  
@@ -794,9 +805,6 @@ class EthProxyBase(EthSigDelegate):
             if result == '0x' or result == '' or result is None:
                 result = None
         return result        
-        
-        
-        return self._call('eth_getCode', [address, default_block])
 
     def eth_getBlockByHash(self, block_hash, transaction_objects=True):
         """

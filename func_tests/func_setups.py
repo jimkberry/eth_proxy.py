@@ -21,7 +21,8 @@ log.getLogger("urllib3").setLevel(log.WARNING)
 class FuncSetups(object):
     
     def __init__(self, host_ip=None):
-            self.eth_host = 'https://ropsten.infura.io:443'
+            #self.eth_host = 'https://ropsten.infura.io:443'
+            self.eth_host = 'https://infuranet.infura.io:443'
             #eth_host = 'http://localhost:8545'
             #eth_host = 'ipc:/home/jim/cons-testnet-geth/data/geth.ipc'
 

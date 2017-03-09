@@ -64,7 +64,7 @@ class async_tester(TransactionDelegate):
     # TransactionDelegate API
     #
     def tx_submitted(self, delegate_data, tx_hash, err_code, err_msg):
-        print("Tx_submitted callback - err: {0} dData: {1}".format(err_code, delegate_data))
+        print("Tx_submitted callback - err: {0} Data: {1}".format(err_code, delegate_data))
         
     def tx_complete(self, delegate_data, tx_hash, contract_addr, has_code,
                     gas_price, gas_used, err, err_msg):    
@@ -83,7 +83,7 @@ class async_tester(TransactionDelegate):
                     self.state = self.STATE_DONE
                                  
             if delegate_data == 'test_tx':
-                log.info("Contract TX in chain")
+                log.info("Contract TX in chain. Gas used: {0}".format(gas_used))
                 self.state = self.STATE_TX_DONE      
         else:
             log.warning("DData: {0}, Err: {1} Msg {2}".format(delegate_data, err, err_msg)) 
@@ -154,7 +154,7 @@ class async_tester(TransactionDelegate):
         print('Sending TX to contract...')
         self.eth.contract_function_tx( self.account, self.contract_addr, 'SetTheInt(int32)', 
                                              function_parameters=[863], 
-                                             gas=500000,
+                                             gas=50000, # uses about 27000
                                              delegate_info=(self,'test_tx'))
         self.state = self.STATE_TX_SENT         
     
