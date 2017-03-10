@@ -47,6 +47,8 @@ class EthProxyBase(EthSigDelegate):
                                 #  delegate_info: (delegate, del_data) or list of em }     
         self._txs_for_sig = {}  # txs waiting for signature
         self._last_polled_block = -1 # Latest block we've polled
+        
+        self._last_nonce_for_acct = {}  # keyed by acct addr
     
     def _call(self, method, params=None, _id=0):
         '''
@@ -56,10 +58,18 @@ class EthProxyBase(EthSigDelegate):
     
     def _nonce(self, acct_addr):
         '''
-        If nonce isn't set get it from the node
+        Get it from the node. If it seems like a duplicat (submitted TXs too fast?)
+        then increment it.
+        TODO: this can lead to nonces too big if a tx fails to be submitted
         '''
         nonce = self.eth_getTransactionCount(acct_addr, 'pending')
+        
+        if nonce == self._last_nonce_for_acct.get(acct_addr):
+            self.log.warn("Duplicate nonce: {0} for addr: {1} ".format(nonce, acct_addr))
+            nonce += 1
+        
         self.log.info("Nonce: {0} ".format(nonce))
+        self._last_nonce_for_acct[acct_addr] = nonce
         return nonce                                  
  
     def _makeGasPrice(self):
