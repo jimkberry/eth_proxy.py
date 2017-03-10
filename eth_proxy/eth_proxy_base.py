@@ -64,9 +64,9 @@ class EthProxyBase(EthSigDelegate):
         '''
         nonce = self.eth_getTransactionCount(acct_addr, 'pending')
         
-        if nonce == self._last_nonce_for_acct.get(acct_addr):
-            self.log.warn("Duplicate nonce: {0} for addr: {1} ".format(nonce, acct_addr))
-            nonce += 1
+        if nonce <= self._last_nonce_for_acct.get(acct_addr):
+            self.log.warn("Obsolete nonce: {0} for addr: {1} ".format(nonce, acct_addr))
+            nonce = self._last_nonce_for_acct.get(acct_addr) + 1
         
         self.log.info("Nonce: {0} ".format(nonce))
         self._last_nonce_for_acct[acct_addr] = nonce
