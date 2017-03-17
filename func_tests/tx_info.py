@@ -20,18 +20,20 @@ tx_hash = args.tx_hash
 
 # - - - - - - -
 
+def maybe_decode_int(hexStr):
+    return hex_str_to_int(hexStr) if hexStr else "None" 
 
 def print_tx_info(tx_data):    
     print("             Hash: {0}".format(tx_data['hash']))
-    print("            Nonce: {0}".format(hex_str_to_int(tx_data['nonce'])))
+    print("            Nonce: {0}".format(maybe_decode_int(tx_data['nonce'])))
     print("       Block Hash: {0}".format(tx_data['blockHash']))
-    print("     Block Number: {0}".format(hex_str_to_int(tx_data['blockNumber'])))    
-    print("Transaction Index: {0}".format(hex_str_to_int(tx_data['transactionIndex'])))
+    print("     Block Number: {0}".format(maybe_decode_int(tx_data['blockNumber'])))    
+    print("Transaction Index: {0}".format(maybe_decode_int(tx_data['transactionIndex'])))
     print("             From: {0}".format(tx_data['from']))
     print("               To: {0}".format(tx_data['to']))
-    print("            Value: {0}".format(hex_str_to_int(tx_data['value'])))  
-    print("        Gas Price: {0}".format(hex_str_to_int(tx_data['gasPrice'])))  
-    print("         Gas Sent: {0}".format(hex_str_to_int(tx_data['gas'])))
+    print("            Value: {0}".format(maybe_decode_int(tx_data['value'])))  
+    print("        Gas Price: {0}".format(maybe_decode_int(tx_data['gasPrice'])))  
+    print("         Gas Sent: {0}".format(maybe_decode_int(tx_data['gas'])))
     print("       Input Data: {0}".format(tx_data['input']))
             
 # - - - - - - 
