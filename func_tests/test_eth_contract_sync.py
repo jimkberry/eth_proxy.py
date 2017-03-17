@@ -43,7 +43,8 @@ contract_path = fs.write_temp_contract("test.sol", contract_src)
 
 #eth = fs.create_proxy()
 #eth = fs.create_proxy('https://propsten.infura.io:443')
-eth = fs.create_proxy('http://localhost:8545')
+#eth = fs.create_proxy('http://localhost:8545')
+eth = fs.create_proxy('https://infuranet.infura.io:443')
 
 keystore = fs.create_keystore()
 account = fs.get_account(keystore, 0)

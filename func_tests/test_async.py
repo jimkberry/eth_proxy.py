@@ -99,6 +99,7 @@ class async_tester(TransactionDelegate):
         keystore = fs.create_keystore()
         # Set up proxy for this account
         self.eth.set_eth_signer(keystore)
+        #self.eth.set_dynamic_gas_price(1.1)
         self.account = fs.get_account(keystore, 0)
 
         

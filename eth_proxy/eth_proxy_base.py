@@ -47,8 +47,9 @@ class EthProxyBase(EthSigDelegate):
                                 #  delegate_info: (delegate, del_data) or list of em }     
         self._txs_for_sig = {}  # txs waiting for signature
         self._last_polled_block = -1 # Latest block we've polled
-        
         self._last_nonce_for_acct = {}  # keyed by acct addr
+        self._static_gas_price = self.DEFAULT_GAS_PRICE  # fixed 
+        self._dyn_gas_price_mul = None # if set, gas price sent is this value * the current average gas price        
     
     def _call(self, method, params=None, _id=0):
         '''
@@ -73,12 +74,14 @@ class EthProxyBase(EthSigDelegate):
         return nonce                                  
  
     def _makeGasPrice(self):
-        defPrice = self.eth_gasPrice()
-        thePrice = int(float(defPrice) * self.GAS_PRICE_MULT)
-        if thePrice < self.DEFAULT_GAS_PRICE: # don;t go below or you won't get mined
-            thePrice = self.DEFAULT_GAS_PRICE
+        thePrice = self._static_gas_price #default to this
+        if not thePrice:
+            defPrice = self.eth_gasPrice()
+            thePrice = int(float(defPrice) * self._dyn_gas_price_mul)
+            if thePrice < self.DEFAULT_GAS_PRICE: # don;t go below or you won't get mined
+                thePrice = self.DEFAULT_GAS_PRICE
         return thePrice
-    
+      
     def _get_contract_addr(self, txHash):
         '''
         Given a hash for a completed contract creation tx,
@@ -146,10 +149,11 @@ class EthProxyBase(EthSigDelegate):
             tx = self.eth_getTransactionByHash(str(tx_hash))
             if tx and tx['blockNumber']: # blocknumber means it's published    
                 # self.log.info('Found tx: {0}'.format(tx)) # &&&       
+                gas_price = int(tx.get('gasPrice'),16) 
                 rcpt = self.eth_getTransactionReceipt(str(tx_hash))  # TODO: look into translating contents
                 if rcpt:
                     #self.log.info('Tx rcpt: {0}'.format(rcpt)) # &&&                      
-                    gas_used = int(rcpt.get('gasUsed'),16)         
+                    gas_used = int(rcpt.get('gasUsed'),16)
                     contract_addr = rcpt.get('contractAddress')
                     if contract_addr:
                         has_code = self.eth_getCode(contract_addr) is not None
@@ -290,6 +294,15 @@ class EthProxyBase(EthSigDelegate):
 #
 # New API
 # 
+
+    # Unless these are used, self.DEFAULT_GAS_PRICE is used
+    def set_static_gas_price(self, price):
+        self._static_gas_price = price
+        self._dyn_gas_price_mul = None
+    
+    def set_dynamic_gas_price(self, multiplier):
+        self._dyn_gas_price_mul = multiplier
+        self._static_gas_price = None 
 
 #
 # Needed for mid- and high-level calls (not for low, node-level calls)

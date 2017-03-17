@@ -6,6 +6,7 @@ from solc_caller import SolcCaller
 from types import ListType
 import json
 import os
+from eth_proxy.eth_proxy_base import EthProxyBase
 
 # By default we'd like to import a 'config' module which implements
 # setup_class_logger(). Otherwise use this instead
@@ -45,6 +46,8 @@ class EthContract(TransactionDelegate):
         self.log = config.setup_class_logger(self)         
         self._eth = eth_proxy
         self.acct_addr = acct_addr
+        self._static_gas_price = EthProxyBase.DEFAULT_GAS_PRICE  # fixed sent to eth_proxy
+        self._dyn_gas_price_mul = None # if set, gas price sent is this value * the current average gas price
         self._folder = None
         self._source_path = None
         self._methods = None
@@ -74,12 +77,28 @@ class EthContract(TransactionDelegate):
         self._methods = self._data.get('methods')
         self._hex_bytedata = self._data.get('hex_bytedata')
     
+    def _make_gas_price(self):
+        thePrice = self._static_gas_price #default to this
+        if not thePrice:
+            defPrice = self.eth_gasPrice()
+            thePrice = int(float(defPrice) * self._dyn_gas_price_mul)
+            if thePrice < EthProxyBase.DEFAULT_GAS_PRICE: # don;t go below or you won't get mined
+                thePrice = EthProxyBase.DEFAULT_GAS_PRICE
+        return thePrice
+
+    def set_static_gas_price(self, price):
+        self._static_gas_price = price
+        self._dyn_gas_price_mul = None
+    
+    def set_dynamic_gas_price(self, multiplier):
+        self._dyn_gas_price_mul = multiplier
+        self._static_gas_price = None
 
     def generate_metadata(self, print_results=True):
         '''
         This is really for development only. It compiles the solc source code and
         creates the json metadata for eth_contract. Since it cannot know (or even guess at
-        very well) gas price it instead preserves what was already there in the previous
+        very well) gas cost it instead preserves what was already there in the previous
         metadata (if any) or adds a default value that you will have to fix yourself 
         
         To use it, create at json file with at least 
@@ -223,6 +242,7 @@ class EthContract(TransactionDelegate):
                                              ctor_sig=mData['sig'],
                                              ctor_params=ctor_params,
                                              gas=mData['gas'],
+                                             gas_price=self._make_gas_price(),
                                              delegate_info=delegate_info)        
     
     def install_sync(self, ctor_params=None, timeout_secs=None):
@@ -242,7 +262,8 @@ class EthContract(TransactionDelegate):
                                                              byte_data=byte_data, 
                                                              ctor_sig=mData['sig'], 
                                                              ctor_params=ctor_params,
-                                                             gas=mData['gas'])           
+                                                             gas=mData['gas'],
+                                                             gas_price=self._make_gas_price())           
         
         self._addr = tx_data.get('contract_addr')
         self._installed = tx_data.get('has_code')        
@@ -286,7 +307,8 @@ class EthContract(TransactionDelegate):
                                               self._addr,
                                               mData['sig'], 
                                               function_parameters=params, 
-                                              gas=mData['gas'],  
+                                              gas=mData['gas'], 
+                                              gas_price=self._make_gas_price(), 
                                               timeout_secs=timeout_secs, 
                                               delegate_info=delegate_info,
                                               value=value)
@@ -308,7 +330,8 @@ class EthContract(TransactionDelegate):
                                                    self._addr,
                                                    mData['sig'], 
                                                    function_parameters=params, 
-                                                   gas=mData['gas'],  
+                                                   gas=mData['gas'],
+                                                   gas_price=self._make_gas_price(),
                                                    timeout_secs=timeout_secs, 
                                                    value=value)
              
