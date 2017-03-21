@@ -23,7 +23,9 @@ tx_hash = args.tx_hash
 def maybe_decode_int(hexStr):
     return hex_str_to_int(hexStr) if hexStr else "None" 
 
-def print_tx_info(tx_data):    
+def print_tx_info(tx_data):  
+    print('\nTransaction Data:')
+    print('-----------------')        
     print("             Hash: {0}".format(tx_data['hash']))
     print("            Nonce: {0}".format(maybe_decode_int(tx_data['nonce'])))
     print("       Block Hash: {0}".format(tx_data['blockHash']))
@@ -36,6 +38,25 @@ def print_tx_info(tx_data):
     print("         Gas Sent: {0}".format(maybe_decode_int(tx_data['gas'])))
     print("       Input Data: {0}".format(tx_data['input']))
             
+   
+def print_tx_logs(logs):
+    print(       "Unformatted logs: {0}".format(logs))   
+            
+def print_tx_receipt(rcpt):
+    print("\nTransaction Receipt:")
+    print('--------------------')     
+    if rcpt:
+        print("   Transaction Hash: {0}".format(rcpt['transactionHash']))               
+        print("  Transaction Index: {0}".format(maybe_decode_int(rcpt['transactionIndex'])))
+        print("         Block Hash: {0}".format(rcpt['blockHash']))
+        print("      Block Nummber: {0}".format(maybe_decode_int(rcpt['blockNumber'])))                   
+        print("Cumulative Gas Used: {0}".format(maybe_decode_int(rcpt['cumulativeGasUsed']))) 
+        print("           Gas Used: {0}".format(maybe_decode_int(rcpt['gasUsed']))) 
+        print("   Contract Address: {0}".format(rcpt['contractAddress']))  
+        print_tx_logs(rcpt['logs']) 
+    else:
+        print("None.")
+                 
 # - - - - - - 
 
 fs = FuncSetups()
@@ -53,37 +74,14 @@ if tx_obj is None:
     
 print_tx_info(tx_obj)
 
+rcpt = eth.eth_getTransactionReceipt(tx_hash)
 
+print_tx_receipt(rcpt)
 
-
+print('')
 
 exit()
         
-
-balance = eth.eth_getBalance(table)  #
-print("\nTable: {0}".format(table)) 
-print("Balance: {0}".format(float(balance)/ETH_ETHER))
-if not passcode:
-    exit()
-
-contract_desc = os.path.join(gamenet.__path__[0] + '/contracts/etherpoker_table_sol.json')   
-
-tableCon = EthContract(contract_desc, eth, acct)
-tableCon.setAddress(table)
-# join
-msg = tableCon.transaction_sync('takeAllTheEther',[passcode])
-if msg['err']:
-    print("TX failed: {0}".format(msg['errmsg'])) 
-else:
-    log_data = tableCon.get_log_data(msg['tx_hash'])
-    if log_data:
-        tx_msg = hex_to_str(log_data)    
-        if tx_msg is not '' :
-            print("Error: {0}".format(tx_msg))
-        else:
-            print("Success!");
-            
-
 
 
 
