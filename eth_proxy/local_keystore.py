@@ -132,8 +132,14 @@ class EthLocalKeystore(EthereumSigner):
         if not errmsg:
             try:
                 priv_key = keys.decode_keystore_json(acct_data, password)
-            except:
+            except keys.PasswordError as ex:
                 errmsg = 'Password failed for account: {0}'.format(v_addr)
+            except keys.HashNotSupported as ex:
+                errmsg = 'Keystore: {0}'.format(ex.text())
+            except keys.EncryptionNotSupported as ex:
+                errmsg = 'Keystore: {0}'.format(ex.text())
+            except Exception as ex:
+                errmsg = 'Keystore Exception: {0}'.format(ex.text())
                   
         if priv_key:
             self._cached_pks[v_addr] = priv_key
