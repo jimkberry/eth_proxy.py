@@ -45,9 +45,17 @@ from Crypto.Cipher import AES
 from Crypto.Hash import SHA256
 from Crypto.Util import Counter
 
+# Specific errors
+class HashNotSupportedError(Exception):
+    pass
+
+class EncryptionNotSupportedError(Exception):
+    pass
+
+class PasswordError(Exception):
+    pass
+
 # TODO: make it compatible!
-
-
 SCRYPT_CONSTANTS = {
     "n": 262144,
     "r": 1,
@@ -203,13 +211,13 @@ def decode_keystore_json(jsondata, pw):
     kdfparams = cryptdata["kdfparams"]
     kdf = cryptdata["kdf"]
     if cryptdata["kdf"] not in kdfs:
-        raise Exception("Hash algo %s not supported" % kdf)
+        raise HashNotSupportedError("Hash algo %s not supported" % kdf)
     kdfeval = kdfs[kdf]["calc"]
     # Get cipher and parameters
     cipherparams = cryptdata["cipherparams"]
     cipher = cryptdata["cipher"]
     if cryptdata["cipher"] not in ciphers:
-        raise Exception("Encryption algo %s not supported" % cipher)
+        raise EncryptionNotSupportedError("Encryption algo %s not supported" % cipher)
     decrypt = ciphers[cipher]["decrypt"]
     # Compute the derived key
     derivedkey = kdfeval(pw, kdfparams)
@@ -226,7 +234,7 @@ def decode_keystore_json(jsondata, pw):
     mac1 = sha3(derivedkey[16:32] + ctext)
     mac2 = decode_hex(cryptdata["mac"])
     if mac1 != mac2:
-        raise ValueError("MAC mismatch. Password incorrect?")
+        raise PasswordError("MAC mismatch. Password incorrect?")
     return o
 
 def new_priv_key():
