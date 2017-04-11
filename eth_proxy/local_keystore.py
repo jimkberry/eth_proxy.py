@@ -135,9 +135,9 @@ class EthLocalKeystore(EthereumSigner):
             except keys.PasswordError as ex:
                 errmsg = 'Password failed for account: {0}'.format(v_addr)
             except keys.HashNotSupportedError as ex:
-                errmsg = 'Keystore: {0}'.format(ex.text())
+                errmsg = 'Keystore: {0}'.format(str(ex))
             except keys.EncryptionNotSupportedError as ex:
-                errmsg = 'Keystore: {0}'.format(ex.text())
+                errmsg = 'Keystore: {0}'.format(str(ex))
             except Exception as ex:
                 errmsg = 'Keystore Exception: {0}'.format(ex.text())
                   
