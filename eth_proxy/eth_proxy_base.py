@@ -549,7 +549,7 @@ class EthProxyBase(EthSigDelegate):
         TODO: try doing this using the JSON-RPC calls to compile code.   
         '''     
         # constructor parameters
-        if ctor_sig:
+        if ctor_sig and ctor_params:
             types = ctor_sig[ctor_sig.find('(') + 1: ctor_sig.find(')')].split(',')
             encoded_params = abi.encode_abi(types, ctor_params)                
             byte_data = byte_data + encoded_params 

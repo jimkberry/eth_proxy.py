@@ -49,7 +49,7 @@ class FuncSetups(object):
             # A keystore that manages accounts locally in files
             # that are interoperable with e geth keystore
             from eth_proxy.local_keystore import EthLocalKeystore        
-            ks_path = '/home/jim/etherpoker/etherpoker/poker_keystore'
+            ks_path = '/home/jim/.virtue_poker/poker_keystore'
             if ks_param:
                 ks_path = ks_param
             keystore = EthLocalKeystore(ks_path)

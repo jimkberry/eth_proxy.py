@@ -12,6 +12,32 @@ fs = FuncSetups()
 #
 # Create a simple contract with ctor params
 #
+# contract_src = \
+#     '''
+#     pragma solidity ^0.4.0;     
+#     contract TheTestContract 
+#     {
+#         // publics
+#         int32 public aPublicInt = 111;
+#             
+#         // private'ish
+#         address _ownerAddr;
+#     
+#         // Gas measured: ?? TODO
+#         function TheTestContract(int32 newInt) 
+#         {
+#             aPublicInt = newInt;
+#             _ownerAddr = msg.sender;
+#         }
+#         
+#         function SetTheInt(int32 newInt)
+#         {
+#             aPublicInt = newInt; 
+#         }
+#     }     
+#     '''
+
+# For testing with no ctor params
 contract_src = \
     '''
     pragma solidity ^0.4.0;     
@@ -24,9 +50,9 @@ contract_src = \
         address _ownerAddr;
     
         // Gas measured: ?? TODO
-        function TheTestContract(int32 newInt) 
+        function TheTestContract() 
         {
-            aPublicInt = newInt;
+            aPublicInt = 147;
             _ownerAddr = msg.sender;
         }
         
@@ -38,6 +64,7 @@ contract_src = \
     '''
 
 contract_path = fs.write_temp_contract("test.sol", contract_src)
+
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -59,7 +86,8 @@ log.info("Ether balance: {0}".format(ether))
 # Create
 contract = EthContract(None, eth, account) # No description path
 contract.new_source(contract_path)
-txdata = contract.install_sync([222]) # sync mode
+#txdata = contract.install_sync([222]) # sync mode
+txdata = contract.install_sync() # for no-ctor-params test
 if not contract.installed():
     raise RuntimeError("Contract creation failed")            
        
