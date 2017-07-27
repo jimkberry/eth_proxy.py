@@ -68,7 +68,7 @@ if errcode < 0:
 print("stx: {0}".format(stx))
 
 txhash = eth.eth_sendRawTransaction(stx)
-print("tx_hash: {0}".format(txhash))
+print("tx_hash: {0}".format(txhash)) 
 nonce += 1
 
 (success, dummy) = wait_for_tx(txhash)
@@ -109,7 +109,8 @@ contract_src = \
 contract_path = fs.write_temp_contract("test.sol", contract_src)
 
 print("\nContract Creation")   
-byte_code = SolcCaller.compile_solidity(contract_path)
+byte_code = SolcCaller.compile_solidity(contract_path, "TheTestContract")
+assert(byte_code)
 utx = eth.prepare_contract_creation_tx(byte_data=byte_code, 
                                     ctor_sig='TheTestContract(int32)', 
                                     ctor_params=[222],

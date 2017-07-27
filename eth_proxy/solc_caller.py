@@ -29,7 +29,7 @@ class SolcCaller(object):
         
          
     @staticmethod
-    def compile_solidity(source_path, contract_name):
+    def compile_solidity(source_path, contract_name=None):
         '''
         Changes to solc can to break pyethereum's solc wrapper, and we're not really
         using it to do much. So let's just do it here. Most of this is pretty much lifted from
@@ -50,14 +50,24 @@ class SolcCaller(object):
         result = None
         try:
             solc_results = SolcCaller._call_solc(args)
-            jdata = json.loads(solc_results)                           
-                    
-            key = "{0}:{1}".format(source_path,contract_name)                    
-            hx = jdata['contracts'][key]['bin']                
-            # print '[{0}]'.format(hx)
-            result = hx.decode('hex')
+            jdata = json.loads(solc_results)   
         except:
-            pass  # TODO: Log a warning
+            log.error("compile_solidity() failed: {0}".format(sys.exc_info()[0]))
+            
+        if contract_name is not None:        
+            key = "{0}:{1}".format(source_path,contract_name) 
+            c_data = jdata['contracts'].get(key)
+            if not c_data:
+                log.error("compile_solidity() contract: {0} not found".format(contract_name))                
+            
+        else:
+            log.warning("No contract name specified. Using first in source file.") 
+            log.warning("Calling compile_solidity() without contract name is deprecated. Please update your code.")
+            c_data = jdata['contracts'].values()[0]                            
+            
+        if c_data:            
+            hx = c_data['bin']                
+            result = hx.decode('hex')
                        
         return result
         
