@@ -21,7 +21,7 @@ account2 = fs.get_account(keystore, 1)
 
 
 # A global nonce for "account"
-nonce = eth.eth_getTransactionCount(account, return_raw=False)
+nonce = eth.eth_getTransactionCount(account, 'pending')
 print("nonce: {0}".format(nonce))
 
 def wait_for_tx(tx_hash, timeout=120):

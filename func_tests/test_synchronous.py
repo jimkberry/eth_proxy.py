@@ -7,8 +7,8 @@ fs = FuncSetups()
 
 
 # the EthProxy
-#eth = fs.create_proxy()
-eth = fs.create_proxy('http://localhost:8545')
+eth = fs.create_proxy()
+#eth = fs.create_proxy('http://localhost:8545')
 
 block = eth.eth_blockNumber()  # Trivial test (are we connected?)
 print("\neth_blockNumber(): {0}".format(block))
