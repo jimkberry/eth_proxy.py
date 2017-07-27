@@ -6,7 +6,9 @@ from solc_caller import SolcCaller
 from types import ListType
 import json
 import os
+import re
 from eth_proxy.eth_proxy_base import EthProxyBase
+from eth_proxy.utils import validate_address
 
 # By default we'd like to import a 'config' module which implements
 # setup_class_logger(). Otherwise use this instead
@@ -38,7 +40,7 @@ class EthContract(TransactionDelegate):
     CREATION_CONTEXT = 'contract_creation'  # delegate context for creation tx
 
 
-    def __init__(self, contract_desc_path, eth_proxy, acct_addr):
+    def __init__(self, contract_name, contract_desc_path, eth_proxy, acct_addr):
         '''
         The contract descriptor is a json file which acts as an
         adjunct to a contract source file
@@ -50,6 +52,7 @@ class EthContract(TransactionDelegate):
         self._dyn_gas_price_mul = None # if set, gas price sent is this value * the current average gas price
         self._folder = None
         self._source_path = None
+        self._contract_name = contract_name
         self._methods = None
         self._hex_bytedata = None
         self._creation_tx = None # tx hash for creation transaction - might want it
@@ -111,7 +114,7 @@ class EthContract(TransactionDelegate):
         and can be used immediately
         '''
             
-        src_data = SolcCaller.generate_metadata(self._source_path)
+        src_data = SolcCaller.generate_metadata(self._source_path,self._contract_name)
         if src_data == None:
             self.log.warning("Unable to generate metadata. Solc failed/not found.")
         else:
@@ -164,6 +167,27 @@ class EthContract(TransactionDelegate):
         self._folder = os.path.dirname(source_path)        
         self.generate_metadata() 
         
+    def link_library(self, libraryName, libAddress):
+        '''
+        Replace library address placeholders in self's bytecode
+        with the hex address of the library.
+        '''
+        addrStr = validate_address(libAddress)
+        if not addrStr:
+            raise RuntimeError("Invalid library address: {0}".format(libAddress))    
+        addrStr = addrStr[2:] # remove '0x' prefix
+        if not self._hex_bytedata:
+            raise RuntimeError("Contract has no compiled bytecode")             
+            
+        pat = '__(.*?){0}__+'.format(libraryName)
+        matches = re.findall(pat, self._hex_bytedata)
+        if len(matches) == 0:
+            raise RuntimeError("Library reference not found")
+        print("\norig_data: {0}\n".format(self._hex_bytedata))          
+        self._hex_bytedata = re.sub(pat,addrStr,self._hex_bytedata,0)            
+        print("\nout_data: {0}\n".format(self._hex_bytedata))         
+               
+        
     def _methodSig(self, methodName):
         sig = None
         mData = self._methods.get(methodName)
@@ -207,7 +231,7 @@ class EthContract(TransactionDelegate):
 # API
 #
                     
-    def install(self, ctor_params=None, delegate_info=None, timeout_secs=None):
+    def install(self, ctor_params=None, delegate_info=None, timeout_secs=None, gas=None):
         '''
         Compile the source code and install the contract.
         Returns Nothing
@@ -236,16 +260,20 @@ class EthContract(TransactionDelegate):
             byte_data = SolcCaller.compile_solidity( self._source_path) 
 
         self._installed = False
-        mData = self._methods.get('ctor')        
+        mData = self._methods.get('ctor') 
+        
+        if not gas:
+            gas=mData['gas']            
+               
         self._eth.install_compiled_contract( self.acct_addr,
                                              byte_data=byte_data,
                                              ctor_sig=mData['sig'],
                                              ctor_params=ctor_params,
-                                             gas=mData['gas'],
+                                             gas=gas,
                                              gas_price=self._make_gas_price(),
                                              delegate_info=delegate_info)        
     
-    def install_sync(self, ctor_params=None, timeout_secs=None):
+    def install_sync(self, ctor_params=None, timeout_secs=None, gas=None):
         '''        
         Compile the source code and install the contract, then poll synchronously for the transaction to
         be installed. When it is, return the creation message to the caller
@@ -258,11 +286,13 @@ class EthContract(TransactionDelegate):
             byte_data = SolcCaller.compile_solidity( self._source_path)         
         
         mData = self._methods.get('ctor')
+        if not gas:
+            gas=mData['gas']          
         tx_data = self._eth.install_compiled_contract_sync( self.acct_addr,
                                                              byte_data=byte_data, 
                                                              ctor_sig=mData['sig'], 
                                                              ctor_params=ctor_params,
-                                                             gas=mData['gas'],
+                                                             gas=gas,
                                                              gas_price=self._make_gas_price())           
         
         self._addr = tx_data.get('contract_addr')
