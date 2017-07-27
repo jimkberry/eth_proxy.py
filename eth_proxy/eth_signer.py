@@ -18,12 +18,12 @@ class EthereumSigner(object):
         '''
         raise NotImplementedError()
     
-    def sign_data(self, acct_addr, data_hash, delegate=None, context_data=None):
+    def sign_data(self, acct_addr, data_hash_str, delegate=None, context_data=None):
         '''
         
         Params:
             acct_addr - etherem account hex address
-            data_hash -  a 32 byte hash
+            data_hash_str -  a 32 byte hash (hex string)
             delegate - A class implementing the EthSigDelegate mixin.
             context_data - data passed back to the delegate unchanged
                 
