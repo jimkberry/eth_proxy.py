@@ -7,8 +7,9 @@ from func_setups import FuncSetups
 
 fs = FuncSetups()
 
-eth_inf = fs.create_proxy('https://ropsten.infura.io:443')
-eth_loc = fs.create_proxy('http://localhost:8545')
+
+eth_rop = fs.create_proxy('https://ropsten.infura.io:443')
+eth_inf = fs.create_proxy()
 
 keystore = fs.create_keystore()
 account = fs.get_account(keystore, 0)
@@ -60,18 +61,18 @@ def wait_for_txs(tx_list, timeout=120):
 nonce = eth_inf.eth_getTransactionCount(account, return_raw=False)
 print("Correct Nonce: {0}".format(nonce))
 
-stx1 = prep_n_sign_tx(nonce, 0x111)
-stx2 = prep_n_sign_tx(nonce+1, 0x222)
-stx3 = prep_n_sign_tx(nonce+2, 0x333)
+stx1 = prep_n_sign_tx(nonce, 0x1111)
+stx2 = prep_n_sign_tx(nonce+1, 0x2222)
+stx3 = prep_n_sign_tx(nonce+2, 0x3332)
 
 hash2 = eth_inf.eth_sendRawTransaction(stx2)
 print("Sent TX: {0}".format(hash2))
 hash3 = eth_inf.eth_sendRawTransaction(stx3)
 print("Sent TX: {0}".format(hash3))
 
-wait_for_txs([hash2, hash3], 15)
+wait_for_txs([hash2, hash3], 30)
 
-hash1 = eth_loc.eth_sendRawTransaction(stx1)
+hash1 = eth_rop.eth_sendRawTransaction(stx1)
 print("Sent TX: {0}".format(hash1))
 
 wait_for_txs([hash1, hash2, hash3], 120)
