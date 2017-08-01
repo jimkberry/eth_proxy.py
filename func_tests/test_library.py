@@ -14,8 +14,6 @@ import os
 
 
 #
-# Create a simple contract with ctor params
-#
 lib_src = \
     '''
 pragma solidity ^0.4.0;    
@@ -121,6 +119,26 @@ library TestLib
 }     
     '''
 
+lib2_src = \
+    '''
+pragma solidity ^0.4.0;    
+
+library AnotherLib
+{   
+    struct Data{
+        int x;
+        int y;
+    }
+
+    function dataSum(Data storage db)  
+        public
+        returns(int)
+    {
+       return db.x + db.y;
+    }
+                     
+}     
+    '''    
     
     
 caller_src = \
@@ -128,13 +146,17 @@ caller_src = \
 pragma solidity ^0.4.0;   
 
 import "{{libpath}}";
+import "{{lib2path}}";
  
 contract TestCaller
 {
 
-    int16 x;
-    
     TestLib.DataBlock db;
+    AnotherLib.Data alData;
+    
+    //using AnotherLib for AnotherLib.Data;
+    
+    int16 x;    
     int16 y;
 
     function TestCaller( int16 aVal, int16 yVal)
@@ -143,6 +165,8 @@ contract TestCaller
         TestLib.setA(db, aVal);
         y = yVal;
         
+        alData.x = 123;
+        alData.y = 999;
     }
 
     function getX() returns (int16)
@@ -169,6 +193,13 @@ contract TestCaller
     function getDbA() returns (int16)
     {
         return db.a;
+    }
+
+    function getAnotherSum()
+        public
+        returns (int)
+    {
+        return AnotherLib.dataSum(alData);
     }
 
     function libSetA(int16 val)
@@ -246,26 +277,36 @@ contract TestCaller
     '''    
     
 #
-
-def insert_library_address(bytecode, libname, address):
-        print bytecode
-        pat = '__(.*?){0}__+'.format(libname)
-        newcode = re.sub(pat,address,bytecode,0)
-        print newcode
-        return newcode
+# Use to check EthContract.link_library()
+#
+def insert_library_address(bytecode, libspec, address):
+    '''
+    libscpe is <source_path>:<LibraryName>
+    ie" ./base/contract/bob.sol:BobContract"
+    '''    
+    print("\n\n{0}".format(bytecode))
+    pat = '__({0})__+'.format(libspec)
+    newcode = re.sub(pat,address,bytecode,0)
+    print("\n\n{0}".format(newcode))
+    return newcode
     
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 fs = FuncSetups()
 
-lib_path = fs.write_temp_contract("test_lib.sol", lib_src)      
+lib_path = fs.write_temp_contract("test-lib.sol", lib_src)   
+lib2_path = fs.write_temp_contract("test-lib2.sol", lib2_src)   
 lib_folder = os.path.dirname(lib_path)
-os.chdir(lib_folder)
-lib_path = "./test_lib.sol"
 
-# insert actual librar        print("orig_data: {0}\n".format(self._hex_bytedata)) y source
+
+os.chdir(lib_folder)
+lib_path = "./test-lib.sol"
+lib2_path = "./test-lib2.sol"
+
+# insert actual library source path,
+# needs to happen because files are written to temp
 caller_src = str.replace(caller_src, '{{libpath}}', lib_path)
-      
+caller_src = str.replace(caller_src, '{{lib2path}}', lib2_path)
 caller_path = fs.write_temp_contract("test_caller.sol", caller_src)
 
 #eth = fs.create_proxy()
@@ -290,17 +331,38 @@ lib_con.new_source(lib_path)
 txdata = lib_con.install_sync() # sync mode
 if not lib_con.installed():
     raise RuntimeError("library creation failed")
-    
+print("TestLib Address: {0}".format(lib_con.address()))
+
+# install other library
+lib2_con = EthContract('AnotherLib',None, eth, account) # No description path
+lib2_con.new_source(lib2_path)
+txdata = lib2_con.install_sync() # sync mode
+if not lib2_con.installed():
+    raise RuntimeError("library creation failed")
+print("AnotherLib Address: {0}".format(lib2_con.address()))    
      
 # create caller
 call_con = EthContract("TestCaller", None, eth, account) # No description path
 call_con.new_source(caller_path)
 
-#call_con.link_library('TestLib',lib_con.address())
+libs_needed = call_con.library_stubs()
+print( "Libs that need to be linked: {0}".format(libs_needed))
 
-bcode = call_con._hex_bytedata
-newbc = insert_library_address(bcode,'TestLib',lib_con.address()[2:]) 
-call_con._hex_bytedata = newbc
+
+USE_EXTERNAL_LINK = False
+if USE_EXTERNAL_LINK:
+    print('  >> Linking: **** Using External regex replacement ***')   
+    bcode = call_con._hex_bytedata
+    newbc = insert_library_address(bcode,'{0}:TestLib'.format(lib_path),lib_con.address()[2:])
+    newbc2 = insert_library_address(newbc,'{0}:AnotherLib'.format(lib2_path),lib2_con.address()[2:])      
+    call_con._hex_bytedata = newbc2    
+else:
+    print('  >> Linking: Using EthContract.link()')
+    call_con.link_library('{0}:TestLib'.format(lib_path),lib_con.address())          
+    call_con.link_library('{0}:AnotherLib'.format(lib2_path),lib2_con.address())
+  
+
+
 
 txdata = call_con.install_sync([123, 234], gas=3000000) # sync mode
 if not call_con.installed():
@@ -319,7 +381,11 @@ print("db.a: {0}".format(a_val))
 
 [val] = call_con.call('getInnerX')     
 print("db.inner.x: {0}".format(val))
-  
+
+
+[val] = call_con.call('getAnotherSum')     
+print("getAnotherSum(): {0}".format(val)) 
+assert( val == 123+999)  
  
 exit() 
 
@@ -344,6 +410,8 @@ print("map[7] msg: {0}".format(msg))
 [s] = contract.call('return_string')
 msg = bytes_to_str(s)       
 print("return_string(): {0}".format(msg))    
+        
+        
         
         
         

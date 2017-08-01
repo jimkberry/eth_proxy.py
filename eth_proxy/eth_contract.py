@@ -127,6 +127,9 @@ class EthContract(TransactionDelegate):
             new_data['hex_bytedata'] = binData
             new_data['methods'] = {}
             
+            # add dummy "None" ctor
+            new_data['methods']['ctor'] = {'sig': None, 'returns': None, 'gas': DEFAULT_META_CREATION_GAS  }
+            
             for meth in abi:
                 gas = DEFAULT_META_GAS
                 if meth['type'] == 'function':
@@ -167,10 +170,35 @@ class EthContract(TransactionDelegate):
         self._folder = os.path.dirname(source_path)        
         self.generate_metadata() 
         
-    def link_library(self, libraryName, libAddress):
+    def library_stubs(self):
+        '''
+        Look in the self's bytecode for library stubs ( "__<path.contract>____")
+        and return a list of them. They include both the path and the library name,
+        because that's how solc does it.
+        '''        
+        if not self._hex_bytedata:
+            raise RuntimeError("Contract has no compiled bytecode")  
+        
+        
+        pat = '__(.*?)__+'
+        matches = re.findall(pat, self._hex_bytedata)
+        fullspecs = set(matches)
+        return list(fullspecs)
+                
+
+    def link_library(self, librarySpec, libAddress):
         '''
         Replace library address placeholders in self's bytecode
         with the hex address of the library.
+        
+        The placeholder consists of 2 underscores, followed by:
+        "<library source file path>:<LibraryName>", folowed by enough
+        underscores to make 40 character.
+        
+        Yes, thou are correct, long paths, filenames or library names will completely
+        much things up. As can underscores in any of those names. As of this writing 
+        this code os more resiliant to underscores than solc, but you still can;t have
+        double-underscores.   
         '''
         addrStr = validate_address(libAddress)
         if not addrStr:
@@ -179,14 +207,21 @@ class EthContract(TransactionDelegate):
         if not self._hex_bytedata:
             raise RuntimeError("Contract has no compiled bytecode")             
             
-        pat = '__(.*?){0}__+'.format(libraryName)
+        pat = '__{0}__+'.format(librarySpec)
         matches = re.findall(pat, self._hex_bytedata)
         if len(matches) == 0:
-            raise RuntimeError("Library reference not found")
-        print("\norig_data: {0}\n".format(self._hex_bytedata))          
+            raise RuntimeError("Library reference ({0}) not found".format(librarySpec))
+        # print("\norig_data: {0}\n".format(self._hex_bytedata))          
         self._hex_bytedata = re.sub(pat,addrStr,self._hex_bytedata,0)            
-        print("\nout_data: {0}\n".format(self._hex_bytedata))         
+        # print("\nout_data: {0}\n".format(self._hex_bytedata))         
                
+    def link_libraries(self, libSpecs):
+        '''
+        Given a list of [libSpec, libAddress] pairs, do the linking.
+        '''
+        for spec in libSpecs:
+            self.link_library(spec[0], spec[1])
+            
         
     def _methodSig(self, methodName):
         sig = None
