@@ -326,24 +326,24 @@ if ether == 0:
     raise RuntimeError("Account has no ether.")
     
 # install library
-lib_con = EthContract('TestLib',None, eth, account) # No description path
-lib_con.new_source(lib_path)
+lib_con = EthContract(None, eth, account) # No description path
+lib_con.new_source(lib_path,'TestLib')
 txdata = lib_con.install_sync() # sync mode
 if not lib_con.installed():
     raise RuntimeError("library creation failed")
 print("TestLib Address: {0}".format(lib_con.address()))
 
 # install other library
-lib2_con = EthContract('AnotherLib',None, eth, account) # No description path
-lib2_con.new_source(lib2_path)
+lib2_con = EthContract(None, eth, account) # No description path
+lib2_con.new_source(lib2_path, 'AnotherLib')
 txdata = lib2_con.install_sync() # sync mode
 if not lib2_con.installed():
     raise RuntimeError("library creation failed")
 print("AnotherLib Address: {0}".format(lib2_con.address()))    
      
 # create caller
-call_con = EthContract("TestCaller", None, eth, account) # No description path
-call_con.new_source(caller_path)
+call_con = EthContract( None, eth, account) # No description path
+call_con.new_source(caller_path, "TestCaller")
 
 libs_needed = call_con.library_stubs()
 print( "Libs that need to be linked: {0}".format(libs_needed))

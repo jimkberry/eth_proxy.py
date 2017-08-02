@@ -32,15 +32,12 @@ class EthContract(TransactionDelegate):
     that makes up an ethereum contract.
     
     IMPORTANT: in the function signatures there can be no spaces in the argument list!
-    
-    Note that a contract sintance contains an account address for the account creating/talking to it
-    This is a convenience and might turn out to be a Bad Thing.
     '''
 
     CREATION_CONTEXT = 'contract_creation'  # delegate context for creation tx
 
 
-    def __init__(self, contract_name, contract_desc_path, eth_proxy, acct_addr):
+    def __init__(self, contract_desc_path, eth_proxy, acct_addr):
         '''
         The contract descriptor is a json file which acts as an
         adjunct to a contract source file
@@ -52,7 +49,7 @@ class EthContract(TransactionDelegate):
         self._dyn_gas_price_mul = None # if set, gas price sent is this value * the current average gas price
         self._folder = None
         self._source_path = None
-        self._contract_name = contract_name
+        self._contract_name = None
         self._methods = None
         self._hex_bytedata = None
         self._creation_tx = None # tx hash for creation transaction - might want it
@@ -73,6 +70,9 @@ class EthContract(TransactionDelegate):
         else:
             with open(contract_desc_path) as f:
                 self._data = json.load(f)
+
+        if self._data.get('contract_name'):
+            self._contract_name = self._data.get('contract_name')
         
         if self._data.get('code_filename'):
             self._source_path = os.path.join(self._folder, self._data['code_filename'])
@@ -105,15 +105,15 @@ class EthContract(TransactionDelegate):
         metadata (if any) or adds a default value that you will have to fix yourself 
         
         To use it, create at json file with at least 
-        { "code_filename": "etherpoker.sol" }, instantiate the contract, 
-        and then call this method
+        { "code_filename": "etherpoker.sol", contract_name="contractName" }, 
+        instantiate the contract, and then call this method
         
         OR - this can also be used for more ad-hoc testing/development. If you
         create the contract with "None" for the description path, and then call
         "new_source()" this will get called (with default gas amounts, of course)
         and can be used immediately
         '''
-            
+   
         src_data = SolcCaller.generate_metadata(self._source_path,self._contract_name)
         if src_data == None:
             self.log.warning("Unable to generate metadata. Solc failed/not found.")
@@ -123,6 +123,7 @@ class EthContract(TransactionDelegate):
             abi = src_data['abi']
             
             new_data = {}
+            new_data['contract_name'] = contractName
             new_data['code_filename'] = self._data.get('code_filename') if self._data else None     
             new_data['hex_bytedata'] = binData
             new_data['methods'] = {}
@@ -161,11 +162,12 @@ class EthContract(TransactionDelegate):
             self.log.info(json.dumps(new_data, indent=4))
             self._load_metadata(None, new_data)
       
-    def new_source(self, source_path):
+    def new_source(self, source_path, contract_name):
         '''
         Compile new source code and recreate all metadata (does not overlay over
         previous data)
         '''
+        self._contract_name = contract_name
         self._source_path = source_path
         self._folder = os.path.dirname(source_path)        
         self.generate_metadata() 

@@ -95,7 +95,7 @@ log.info("Ether balance: {0}".format(ether))
     
 # Create
 contract = EthContract(None, eth, account) # No description path
-contract.new_source(contract_path)
+contract.new_source(contract_path,'TheTestContract')
 txdata = contract.install_sync([]) # sync mode
 if not contract.installed():
     raise RuntimeError("Contract creation failed")            

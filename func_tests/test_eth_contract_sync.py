@@ -85,7 +85,7 @@ log.info("Ether balance: {0}".format(ether))
     
 # Create
 contract = EthContract(None, eth, account) # No description path
-contract.new_source(contract_path)
+contract.new_source(contract_path, 'TheTestContract')
 #txdata = contract.install_sync([222]) # sync mode
 txdata = contract.install_sync() # for no-ctor-params test
 if not contract.installed():

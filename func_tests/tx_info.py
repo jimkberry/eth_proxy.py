@@ -2,7 +2,6 @@
 from eth_proxy.node_signer import EthNodeSigner
 from eth_proxy.solc_caller import SolcCaller
 from eth_proxy.utils import hex_to_str, hex_str_to_int
-from eth_proxy import EthContract
 from func_setups import FuncSetups
 import argparse
 import os

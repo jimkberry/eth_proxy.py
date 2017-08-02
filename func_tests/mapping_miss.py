@@ -45,8 +45,6 @@ contract_src = \
         function playerName(address addr) returns(string)
         {
             Player p = _playerForAddress(addr);
-            if (p == Player(0))
-                return("Yob!");
             return(p.name);
         }
         
@@ -90,7 +88,7 @@ log.info("Ether balance: {0}".format(ether))
     
 # Create
 contract = EthContract(None, eth, account) # No description path
-contract.new_source(contract_path)
+contract.new_source(contract_path,None) # Lazy - should specify contract name
 txdata = contract.install_sync([]) # sync mode
 if not contract.installed():
     raise RuntimeError("Contract creation failed")            
