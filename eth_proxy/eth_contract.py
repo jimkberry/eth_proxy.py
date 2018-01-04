@@ -9,6 +9,8 @@ import os
 import re
 from eth_proxy.eth_proxy_base import EthProxyBase
 from eth_proxy.utils import validate_address
+from eth_proxy.pyeth_client.eth_utils import sha3, to_string
+from eth_proxy.pyeth_client.eth_abi import decode_abi
 
 # By default we'd like to import a 'config' module which implements
 # setup_class_logger(). Otherwise use this instead
@@ -51,6 +53,7 @@ class EthContract(TransactionDelegate):
         self._source_path = None
         self._contract_name = None
         self._methods = None
+        self._events = None        
         self._hex_bytedata = None
         self._creation_tx = None # tx hash for creation transaction - might want it
         self._addr = None  # Note that the contract will have an address even if the install failed
@@ -78,6 +81,7 @@ class EthContract(TransactionDelegate):
             self._source_path = os.path.join(self._folder, self._data['code_filename'])
             
         self._methods = self._data.get('methods')
+        self._events = self._data.get('events')
         self._hex_bytedata = self._data.get('hex_bytedata')
     
     def _make_gas_price(self):
@@ -112,6 +116,9 @@ class EthContract(TransactionDelegate):
         create the contract with "None" for the description path, and then call
         "new_source()" this will get called (with default gas amounts, of course)
         and can be used immediately
+        
+        TODO: This whole custom format should be replaced with the standard
+        solc ABI text output (plus a dictionary of default gas amounts)
         '''
    
         src_data = SolcCaller.generate_metadata(self._source_path,self._contract_name)
@@ -127,7 +134,8 @@ class EthContract(TransactionDelegate):
             new_data['code_filename'] = self._data.get('code_filename') if self._data else None     
             new_data['hex_bytedata'] = binData
             new_data['methods'] = {}
-            
+            new_data['events'] = {}
+                        
             # add dummy "None" ctor
             new_data['methods']['ctor'] = {'sig': None, 'returns': None, 'gas': DEFAULT_META_CREATION_GAS  }
             
@@ -143,7 +151,19 @@ class EthContract(TransactionDelegate):
                 elif meth['type'] == 'fallback':
                     key = 'fallback'
                     signame = None
-                    
+                elif meth['type'] == 'event':
+                    # This would be it'as own method - except that
+                    # it's sort of a hack until we start using standard ABI files
+                    key = meth['name']
+                    signame = None
+                    edata = {}
+                    argTypes = [inp['type'] for inp in meth['inputs']] 
+                    event_sig= '{0}({1})'.format(key, ','.join(argTypes))
+                    edata['sighash'] = '0x{0}'.format(sha3(event_sig).encode('hex'))     
+                    edata['out_names']=  [inp['name'] for inp in meth['inputs'] if not inp['indexed'] ]
+                    edata['out_types'] = [inp['type'] for inp in meth['inputs'] if not inp['indexed'] ]       
+                    new_data['events'][key] = edata   
+                                   
                 if signame:
                     old_def = {}
                     if self._methods:
@@ -436,4 +456,28 @@ class EthContract(TransactionDelegate):
                 data = log.get('data')
         return data
         
+        
+    def get_event_data(self, tx_hash, event_name):
+        '''
+        Look for and fetch the data for an event with the given signature.
+        A solidity Event writes a log entry with the hash of the event signature
+        as one of the topics.
+           
+        See: https://solidity.readthedocs.io/en/develop/abi-spec.html#events
+        '''
+        event = self._events.get(event_name)
+        assert(event)
+        data = None
+        logs = self._eth.get_transaction_logs(tx_hash)
+        if logs:
+            event_logs = [l for l in logs if len(l['topics']) and l['topics'][0]==event['sighash']]            
+            if len(event_logs):              
+                log_data = event_logs[0].get('data')[2:].decode('hex')
+                    
+                data_arr = decode_abi(event['out_types'], log_data)
+                #data_arr = decode_abi(['int32'], log_data)
+                # Fancy zip usage:
+                data = dict(zip(event['out_names'],data_arr))
+                
+        return data        
                 

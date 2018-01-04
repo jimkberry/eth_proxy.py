@@ -43,6 +43,26 @@ contract_src = \
     pragma solidity ^0.4.0;     
     contract TheTestContract 
     {
+        event LogTableCreation(
+            address _tableAddr
+        );
+        
+        event HighestBidIncreased(
+            address bidder, 
+            uint amount,
+            int32 stuff
+        );         
+        
+        event Deposit(
+            address indexed _from,
+            bytes32 indexed _id,
+            uint _value
+        );        
+    
+        event LogSetTheInt(
+            int32 _theInt
+        );
+    
         // publics
         int32 public aPublicInt = 111;
             
@@ -59,6 +79,7 @@ contract_src = \
         function SetTheInt(int32 newInt)
         {
             aPublicInt = newInt; 
+            LogSetTheInt(newInt);
         }
     }     
     '''
@@ -94,9 +115,16 @@ if not contract.installed():
         
 # Send a tx
 print("Sending function TX to contract")
-msg = contract.transaction_sync('SetTheInt', [863])
-if msg['err']:
-    raise RuntimeError("Contract TX failed: {0}".format(msg['errmsg']))    
+res = contract.transaction_sync('SetTheInt', [863])
+if res['err']:
+    raise RuntimeError("Contract TX failed: {0}".format(res['errmsg']))    
+    
+# read event
+tx_hash = res['tx_hash']
+print(tx_hash)
+ev = contract.get_event_data(tx_hash,'LogSetTheInt')
+print("ev: {0}".format(ev))
+    
     
 # check the tx worked
 print("Calling contract function")    
